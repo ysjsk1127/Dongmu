@@ -1,7 +1,10 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { signup, login, logout, getCurrentUser, updateProfile, validators, formatPhone, formatStudentId } from './lib/auth';
+import { getMembers, addMember, deleteMember, searchMembers, getMemberCount } from './lib/members';
 
+/* ───── Google Icon SVG ───── */
 function GoogleIcon() {
   return (
     <span className="g-icon">
@@ -15,37 +18,95 @@ function GoogleIcon() {
   );
 }
 
-const MOCK_IMPORTS = [
-  { name: '김하늘', detail: '7기 · 구조 팀 · 010-1234-5678' },
-  { name: '이준호', detail: '7기 · 전자 팀 · 010-2345-6789' },
-  { name: '박서윤', detail: '7기 · 추진체 팀 · 010-3456-7890' },
-];
+/* ───── Generation Options ───── */
+const GENERATIONS = Array.from({ length: 10 }, (_, i) => `${i + 1}기`);
 
 export default function Home() {
+  /* ── Navigation ── */
   const [screen, setScreen] = useState('onboard');
   const [tab, setTab] = useState('form');
   const [toast, setToast] = useState('');
-  const [logC, setLogC] = useState(12);
-  const [rcptC, setRcptC] = useState(8);
-  const [memC, setMemC] = useState(42);
+  const areaRef = useRef(null);
+
+  /* ── Auth state ── */
+  const [user, setUser] = useState(null);
+  const [authError, setAuthError] = useState('');
+
+  /* ── Login form ── */
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPw, setLoginPw] = useState('');
+
+  /* ── Signup form ── */
+  const [sName, setSName] = useState('');
+  const [sStudentId, setSStudentId] = useState('');
+  const [sDept, setSDept] = useState('');
+  const [sPhone, setSPhone] = useState('');
+  const [sEmail, setSEmail] = useState('');
+  const [sGen, setSGen] = useState('');
+  const [sPw, setSPw] = useState('');
+  const [sPwConfirm, setSPwConfirm] = useState('');
+  const [signupTouched, setSignupTouched] = useState({});
+
+  /* ── Home/data state ── */
+  const [memC, setMemC] = useState(0);
+  const [logC, setLogC] = useState(0);
+  const [rcptC, setRcptC] = useState(0);
   const [formLoaded, setFormLoaded] = useState(false);
   const [checks, setChecks] = useState([true, true, true]);
   const [pkgOpen, setPkgOpen] = useState(false);
   const [syncText, setSyncText] = useState('Google Forms · 마지막 동기화: 5분 전');
   const [syncing, setSyncing] = useState(false);
-  const areaRef = useRef(null);
 
+  /* ── Member registration form ── */
   const [fName, setFName] = useState('');
-  const [fGen, setFGen] = useState('');
+  const [fStudentId, setFStudentId] = useState('');
+  const [fDept, setFDept] = useState('');
   const [fPhone, setFPhone] = useState('');
+  const [fEmail, setFEmail] = useState('');
+  const [fGen, setFGen] = useState('');
   const [fRole, setFRole] = useState('');
   const [fTeam, setFTeam] = useState('');
+
+  /* ── Expense form ── */
   const [fCat, setFCat] = useState('');
   const [fAmt, setFAmt] = useState('');
   const [fMemo, setFMemo] = useState('');
 
+  /* ── Members list ── */
+  const [membersList, setMembersList] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState(null);
+
+  /* ── Mock form imports ── */
+  const MOCK_IMPORTS = [
+    { name: '김하늘', studentId: '2024010001', department: '기계공학과', phone: '010-1234-5678', generation: '7기', detail: '7기 · 구조 팀 · 010-1234-5678' },
+    { name: '이준호', studentId: '2024010002', department: '전자공학과', phone: '010-2345-6789', generation: '7기', detail: '7기 · 전자 팀 · 010-2345-6789' },
+    { name: '박서윤', studentId: '2024010003', department: '항공우주공학과', phone: '010-3456-7890', generation: '7기', detail: '7기 · 추진체 팀 · 010-3456-7890' },
+  ];
+
+  /* ───── Effects ───── */
+  const refreshData = useCallback(() => {
+    setMemC(getMemberCount());
+    setMembersList(searchQuery ? searchMembers(searchQuery) : getMembers());
+  }, [searchQuery]);
+
+  useEffect(() => {
+    const u = getCurrentUser();
+    if (u) {
+      setUser(u);
+      setScreen('home');
+    }
+    refreshData();
+  }, [refreshData]);
+
+  useEffect(() => {
+    refreshData();
+  }, [searchQuery, refreshData]);
+
+  /* ───── Helpers ───── */
   function go(id) {
     setScreen(id);
+    setAuthError('');
     if (areaRef.current) areaRef.current.scrollTop = 0;
   }
 
@@ -54,6 +115,141 @@ export default function Home() {
     setTimeout(() => setToast(''), 2000);
   }
 
+  function markTouched(field) {
+    setSignupTouched(prev => ({ ...prev, [field]: true }));
+  }
+
+  /* ───── Auth Actions ───── */
+  async function handleSignup() {
+    // Mark all fields as touched
+    setSignupTouched({ name: true, studentId: true, dept: true, phone: true, email: true, gen: true, pw: true, pwConfirm: true });
+
+    // Validate all fields
+    if (!validators.name(sName)) { setAuthError('이름을 2자 이상 입력해주세요.'); return; }
+    if (!validators.studentId(sStudentId)) { setAuthError('학번을 20XXXXXXXX 형식으로 입력해주세요.'); return; }
+    if (!sDept.trim()) { setAuthError('학과를 입력해주세요.'); return; }
+    if (!validators.phone(sPhone)) { setAuthError('전화번호를 010-0000-0000 형식으로 입력해주세요.'); return; }
+    if (!validators.email(sEmail)) { setAuthError('올바른 이메일 주소를 입력해주세요.'); return; }
+    if (!sGen) { setAuthError('가입시기(기수)를 선택해주세요.'); return; }
+    if (!validators.password(sPw)) { setAuthError('비밀번호는 최소 6자 이상이어야 합니다.'); return; }
+    if (sPw !== sPwConfirm) { setAuthError('비밀번호가 일치하지 않습니다.'); return; }
+
+    const result = await signup(sEmail, sPw, {
+      name: sName,
+      studentId: sStudentId,
+      department: sDept,
+      phone: sPhone,
+      generation: sGen,
+    });
+
+    if (!result.success) {
+      setAuthError(result.error);
+      return;
+    }
+
+    setUser(result.user);
+    showToast(`${result.user.name}님, 환영합니다!`);
+    resetSignupForm();
+    refreshData();
+    go('home');
+  }
+
+  async function handleLogin() {
+    if (!loginEmail || !loginPw) {
+      setAuthError('이메일과 비밀번호를 입력해주세요.');
+      return;
+    }
+
+    const result = await login(loginEmail, loginPw);
+    if (!result.success) {
+      setAuthError(result.error);
+      return;
+    }
+
+    setUser(result.user);
+    showToast(`${result.user.name}님, 환영합니다!`);
+    setLoginEmail('');
+    setLoginPw('');
+    refreshData();
+    go('home');
+  }
+
+  function handleLogout() {
+    logout();
+    setUser(null);
+    go('onboard');
+    showToast('로그아웃 되었습니다.');
+  }
+
+  function resetSignupForm() {
+    setSName(''); setSStudentId(''); setSDept(''); setSPhone('');
+    setSEmail(''); setSGen(''); setSPw(''); setSPwConfirm('');
+    setSignupTouched({});
+    setAuthError('');
+  }
+
+  /* ───── Member Actions ───── */
+  function saveMem() {
+    if (!fName) { showToast('이름을 입력해주세요'); return; }
+
+    const result = addMember({
+      name: fName,
+      studentId: fStudentId,
+      department: fDept,
+      phone: fPhone,
+      email: fEmail,
+      generation: fGen,
+      role: fRole,
+      team: fTeam,
+    });
+
+    if (!result.success) {
+      showToast(result.error);
+      return;
+    }
+
+    showToast(`${fName} 부원 등록 완료`);
+    setFName(''); setFStudentId(''); setFDept(''); setFPhone('');
+    setFEmail(''); setFGen(''); setFRole(''); setFTeam('');
+    refreshData();
+    setTimeout(() => go('home'), 1200);
+  }
+
+  function handleDeleteMember(id) {
+    const result = deleteMember(id);
+    if (result.success) {
+      showToast('부원이 삭제되었습니다.');
+      refreshData();
+    }
+    setConfirmDelete(null);
+  }
+
+  function importMembers() {
+    const count = checks.filter(Boolean).length;
+    if (count === 0) { showToast('선택된 부원이 없습니다'); return; }
+
+    let added = 0;
+    MOCK_IMPORTS.forEach((m, i) => {
+      if (checks[i]) {
+        const result = addMember({
+          name: m.name,
+          studentId: m.studentId,
+          department: m.department,
+          phone: m.phone,
+          generation: m.generation,
+          role: '부원',
+          team: '',
+        });
+        if (result.success) added++;
+      }
+    });
+
+    showToast(`${added}명 일괄 등록 완료`);
+    refreshData();
+    setTimeout(() => { setFormLoaded(false); go('home'); }, 1500);
+  }
+
+  /* ───── Sync & Forms ───── */
   function syncForms() {
     setSyncing(true);
     setSyncText('동기화 중...');
@@ -76,24 +272,7 @@ export default function Home() {
     setChecks(next);
   }
 
-  function importMembers() {
-    const count = checks.filter(Boolean).length;
-    if (count === 0) { showToast('선택된 부원이 없습니다'); return; }
-    setMemC(prev => prev + count);
-    setLogC(prev => prev + count);
-    showToast(`${count}명 일괄 등록 완료`);
-    setTimeout(() => { setFormLoaded(false); go('home'); }, 1500);
-  }
-
-  function saveMem() {
-    if (!fName) { showToast('이름을 입력해주세요'); return; }
-    setMemC(prev => prev + 1);
-    setLogC(prev => prev + 1);
-    showToast(`${fName} 부원 등록 완료`);
-    setFName(''); setFGen(''); setFPhone(''); setFRole(''); setFTeam('');
-    setTimeout(() => go('home'), 1200);
-  }
-
+  /* ───── Expense ───── */
   function saveExp() {
     if (!fCat || !fAmt) { showToast('필수 항목을 입력해주세요'); return; }
     setRcptC(prev => prev + 1);
@@ -108,15 +287,24 @@ export default function Home() {
     showToast('인수인계 패키지 생성 완료');
   }
 
-  const navMap = { home: 'home', input: 'input', report: 'report', my: 'my', drive: 'home' };
+  /* ───── Password strength ───── */
+  function getPwStrength(pw) {
+    if (!pw) return { width: '0%', color: 'transparent', label: '' };
+    if (pw.length < 6) return { width: '33%', color: 'var(--warn)', label: '약함' };
+    if (pw.length < 10) return { width: '66%', color: 'var(--blue)', label: '보통' };
+    return { width: '100%', color: 'var(--ok)', label: '강함' };
+  }
+
+  /* ───── Nav state ───── */
+  const navMap = { home: 'home', input: 'input', report: 'report', my: 'my', drive: 'home', members: 'home' };
   const activeNav = navMap[screen] || screen;
-  const showNav = screen !== 'onboard';
+  const showNav = !['onboard', 'login', 'signup'].includes(screen);
 
   return (
     <div className="shell">
       <div className="area" ref={areaRef}>
 
-        {/* ONBOARDING */}
+        {/* ════════ ONBOARDING ════════ */}
         <div className={`scr ${screen === 'onboard' ? 'on' : ''}`}>
           <div className="onb-center">
             <div className="logo-box"><i className="ti ti-rocket"></i></div>
@@ -133,16 +321,200 @@ export default function Home() {
                 </div>
               ))}
             </div>
-            <button className="btn btn-google" style={{ maxWidth: 300, marginBottom: 10 }} onClick={() => go('home')}>
-              <GoogleIcon />Google 계정으로 시작
+            <button className="btn btn-fill" style={{ maxWidth: 300, marginBottom: 10 }} onClick={() => go('signup')}>
+              회원가입
             </button>
-            <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 12 }}>
+            <button className="btn btn-ghost" style={{ maxWidth: 300 }} onClick={() => go('login')}>
+              로그인
+            </button>
+            <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 16 }}>
               이미 동아리가 있나요? <span style={{ color: 'var(--blue)', cursor: 'pointer' }}>코드로 참여</span>
             </p>
           </div>
         </div>
 
-        {/* HOME */}
+        {/* ════════ SIGNUP ════════ */}
+        <div className={`scr ${screen === 'signup' ? 'on' : ''}`}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+            <button style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: 0 }} onClick={() => { go('onboard'); resetSignupForm(); }}>
+              <i className="ti ti-arrow-left" style={{ fontSize: 22 }}></i>
+            </button>
+            <h2 style={{ margin: 0 }}>회원가입</h2>
+          </div>
+          <div className="auth-sub">동아리를 시작하기 위해 기본 정보를 입력해주세요.</div>
+
+          {authError && (
+            <div className="auth-error-box">
+              <i className="ti ti-alert-triangle"></i>
+              <span>{authError}</span>
+            </div>
+          )}
+
+          <div className="auth-form">
+            {/* 개인정보 섹션 */}
+            <div className="form-section">
+              <div className="form-section-title">개인 정보</div>
+
+              <div className="inp-g">
+                <label className="inp-l">이름 *</label>
+                <input
+                  className={`inp ${signupTouched.name ? (validators.name(sName) ? 'valid' : 'invalid') : ''}`}
+                  placeholder="홍길동"
+                  value={sName}
+                  onChange={e => setSName(e.target.value)}
+                  onBlur={() => markTouched('name')}
+                />
+                {signupTouched.name && !validators.name(sName) && (
+                  <div className="auth-err"><i className="ti ti-alert-circle"></i> 2자 이상 입력해주세요</div>
+                )}
+              </div>
+
+              <div className="inp-g">
+                <label className="inp-l">학번 *</label>
+                <input
+                  className={`inp ${signupTouched.studentId ? (validators.studentId(sStudentId) ? 'valid' : 'invalid') : ''}`}
+                  placeholder="20XXXXXXXX"
+                  value={sStudentId}
+                  onChange={e => setSStudentId(formatStudentId(e.target.value))}
+                  onBlur={() => markTouched('studentId')}
+                />
+                <div className="inp-hint">10자리 숫자 (예: 2024010001)</div>
+                {signupTouched.studentId && !validators.studentId(sStudentId) && (
+                  <div className="auth-err"><i className="ti ti-alert-circle"></i> 20으로 시작하는 10자리 숫자를 입력해주세요</div>
+                )}
+              </div>
+
+              <div className="inp-g">
+                <label className="inp-l">학과 *</label>
+                <input
+                  className={`inp ${signupTouched.dept ? (sDept.trim() ? 'valid' : 'invalid') : ''}`}
+                  placeholder="컴퓨터소프트웨어학부"
+                  value={sDept}
+                  onChange={e => setSDept(e.target.value)}
+                  onBlur={() => markTouched('dept')}
+                />
+              </div>
+
+              <div className="inp-g">
+                <label className="inp-l">전화번호 *</label>
+                <input
+                  className={`inp ${signupTouched.phone ? (validators.phone(sPhone) ? 'valid' : 'invalid') : ''}`}
+                  placeholder="010-0000-0000"
+                  value={sPhone}
+                  onChange={e => setSPhone(formatPhone(e.target.value))}
+                  onBlur={() => markTouched('phone')}
+                />
+                {signupTouched.phone && !validators.phone(sPhone) && (
+                  <div className="auth-err"><i className="ti ti-alert-circle"></i> 010-0000-0000 형식으로 입력해주세요</div>
+                )}
+              </div>
+            </div>
+
+            {/* 계정 정보 섹션 */}
+            <div className="form-section">
+              <div className="form-section-title">계정 정보</div>
+
+              <div className="inp-g">
+                <label className="inp-l">이메일 *</label>
+                <input
+                  className={`inp ${signupTouched.email ? (validators.email(sEmail) ? 'valid' : 'invalid') : ''}`}
+                  placeholder="example@hanyang.ac.kr"
+                  value={sEmail}
+                  onChange={e => setSEmail(e.target.value)}
+                  onBlur={() => markTouched('email')}
+                  type="email"
+                />
+                {signupTouched.email && !validators.email(sEmail) && (
+                  <div className="auth-err"><i className="ti ti-alert-circle"></i> 올바른 이메일 형식을 입력해주세요</div>
+                )}
+              </div>
+
+              <div className="inp-g">
+                <label className="inp-l">가입시기 (기수) *</label>
+                <select
+                  className={`inp ${signupTouched.gen ? (sGen ? 'valid' : 'invalid') : ''}`}
+                  value={sGen}
+                  onChange={e => setSGen(e.target.value)}
+                  onBlur={() => markTouched('gen')}
+                >
+                  <option value="">선택</option>
+                  {GENERATIONS.map(g => <option key={g}>{g}</option>)}
+                </select>
+              </div>
+
+              <div className="inp-g">
+                <label className="inp-l">비밀번호 *</label>
+                <input
+                  className={`inp ${signupTouched.pw ? (validators.password(sPw) ? 'valid' : 'invalid') : ''}`}
+                  type="password"
+                  placeholder="최소 6자 이상"
+                  value={sPw}
+                  onChange={e => setSPw(e.target.value)}
+                  onBlur={() => markTouched('pw')}
+                />
+                <div className="pw-strength">
+                  <div className="pw-strength-bar" style={{ width: getPwStrength(sPw).width, background: getPwStrength(sPw).color }}></div>
+                </div>
+                {sPw && <div className="inp-hint">비밀번호 강도: {getPwStrength(sPw).label}</div>}
+              </div>
+
+              <div className="inp-g">
+                <label className="inp-l">비밀번호 확인 *</label>
+                <input
+                  className={`inp ${signupTouched.pwConfirm ? (sPw === sPwConfirm && sPwConfirm ? 'valid' : 'invalid') : ''}`}
+                  type="password"
+                  placeholder="비밀번호를 다시 입력해주세요"
+                  value={sPwConfirm}
+                  onChange={e => setSPwConfirm(e.target.value)}
+                  onBlur={() => markTouched('pwConfirm')}
+                />
+                {signupTouched.pwConfirm && sPw !== sPwConfirm && (
+                  <div className="auth-err"><i className="ti ti-alert-circle"></i> 비밀번호가 일치하지 않습니다</div>
+                )}
+              </div>
+            </div>
+
+            <button className="btn btn-fill" onClick={handleSignup}>가입 완료</button>
+            <div className="auth-link">
+              이미 계정이 있으신가요? <span onClick={() => { go('login'); resetSignupForm(); }}>로그인</span>
+            </div>
+          </div>
+        </div>
+
+        {/* ════════ LOGIN ════════ */}
+        <div className={`scr ${screen === 'login' ? 'on' : ''}`}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+            <button style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: 0 }} onClick={() => go('onboard')}>
+              <i className="ti ti-arrow-left" style={{ fontSize: 22 }}></i>
+            </button>
+            <h2 style={{ margin: 0 }}>로그인</h2>
+          </div>
+          <div className="auth-sub">등록된 이메일과 비밀번호로 로그인해주세요.</div>
+
+          {authError && (
+            <div className="auth-error-box">
+              <i className="ti ti-alert-triangle"></i>
+              <span>{authError}</span>
+            </div>
+          )}
+
+          <div className="auth-form">
+            <div className="inp-g">
+              <label className="inp-l">이메일</label>
+              <input className="inp" placeholder="example@hanyang.ac.kr" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} type="email" />
+            </div>
+            <div className="inp-g">
+              <label className="inp-l">비밀번호</label>
+              <input className="inp" type="password" placeholder="비밀번호를 입력하세요" value={loginPw} onChange={e => setLoginPw(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLogin()} />
+            </div>
+            <button className="btn btn-fill" onClick={handleLogin}>로그인</button>
+            <div className="auth-link">
+              계정이 없으신가요? <span onClick={() => { go('signup'); setAuthError(''); }}>회원가입</span>
+            </div>
+          </div>
+        </div>
+
+        {/* ════════ HOME ════════ */}
         <div className={`scr ${screen === 'home' ? 'on' : ''}`}>
           <div className="up" style={{ marginBottom: 4 }}>한양대학교 로켓연구회</div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
@@ -163,7 +535,7 @@ export default function Home() {
           </div>
 
           <div className="grid2" style={{ marginBottom: 12 }}>
-            <div className="metric" onClick={() => { go('input'); setTab('form'); }}>
+            <div className="metric" onClick={() => go('members')}>
               <span className="up">총 부원</span>
               <div className="val">{memC}<span style={{ fontSize: 13, fontWeight: 300, color: 'var(--muted)' }}>명</span></div>
             </div>
@@ -212,7 +584,68 @@ export default function Home() {
           </button>
         </div>
 
-        {/* INPUT */}
+        {/* ════════ MEMBERS LIST ════════ */}
+        <div className={`scr ${screen === 'members' ? 'on' : ''}`}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+            <button style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: 0 }} onClick={() => go('home')}>
+              <i className="ti ti-arrow-left" style={{ fontSize: 22 }}></i>
+            </button>
+            <h2 style={{ margin: 0 }}>부원 목록</h2>
+          </div>
+          <div className="stripe"></div>
+
+          <div className="search-bar">
+            <div className="search-wrap">
+              <i className="ti ti-search"></i>
+              <input
+                className="inp"
+                placeholder="이름, 학번, 학과로 검색..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <button className="btn btn-fill btn-sm" onClick={() => { go('input'); setTab('mem'); }}>
+              <i className="ti ti-plus" style={{ fontSize: 14 }}></i>
+            </button>
+          </div>
+
+          <div className="member-count-bar">
+            <div className="member-count">전체 <strong>{membersList.length}</strong>명</div>
+            {searchQuery && <div className="cap">검색 결과</div>}
+          </div>
+
+          <div className="card" style={{ padding: '4px 16px' }}>
+            {membersList.length === 0 ? (
+              <div className="empty-state">
+                <i className="ti ti-users-minus"></i>
+                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
+                  {searchQuery ? '검색 결과가 없습니다' : '등록된 부원이 없습니다'}
+                </div>
+                <div className="cap">
+                  {searchQuery ? '다른 검색어로 시도해보세요' : '기록 관리에서 부원을 등록해주세요'}
+                </div>
+              </div>
+            ) : (
+              membersList.map(m => (
+                <div className="member-card" key={m.id}>
+                  <div className="member-avatar">{m.name.charAt(0)}</div>
+                  <div className="member-info">
+                    <div className="member-name">{m.name}</div>
+                    <div className="member-detail">{m.generation} · {m.department} · {m.studentId}</div>
+                    <div className="member-detail">{m.phone}{m.role ? ` · ${m.role}` : ''}</div>
+                  </div>
+                  <div className="member-actions">
+                    <button className="member-del" onClick={() => setConfirmDelete(m)}>
+                      <i className="ti ti-trash"></i>
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* ════════ INPUT ════════ */}
         <div className={`scr ${screen === 'input' ? 'on' : ''}`}>
           <h2>기록 관리</h2>
           <div className="tabs">
@@ -271,10 +704,13 @@ export default function Home() {
 
           {tab === 'mem' && (
             <div>
-              <div className="cap" style={{ marginBottom: 12 }}><i className="ti ti-info-circle" style={{ fontSize: 14, verticalAlign: -2 }}></i> Google Forms 연동 시 자동 등록됩니다. 수동 등록은 보조 수단입니다.</div>
-              <div className="inp-g"><label className="inp-l">이름</label><input className="inp" placeholder="홍길동" value={fName} onChange={e => setFName(e.target.value)} /></div>
-              <div className="inp-g"><label className="inp-l">기수</label><select className="inp" value={fGen} onChange={e => setFGen(e.target.value)}><option value="">선택</option><option>7기 (2026)</option><option>6기 (2025)</option><option>5기 (2024)</option></select></div>
-              <div className="inp-g"><label className="inp-l">연락처</label><input className="inp" placeholder="010-0000-0000" value={fPhone} onChange={e => setFPhone(e.target.value)} /></div>
+              <div className="cap" style={{ marginBottom: 12 }}><i className="ti ti-info-circle" style={{ fontSize: 14, verticalAlign: -2 }}></i> 부원을 수동으로 등록합니다. 필수 항목(*)을 입력해주세요.</div>
+              <div className="inp-g"><label className="inp-l">이름 *</label><input className="inp" placeholder="홍길동" value={fName} onChange={e => setFName(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">학번</label><input className="inp" placeholder="20XXXXXXXX" value={fStudentId} onChange={e => setFStudentId(formatStudentId(e.target.value))} /></div>
+              <div className="inp-g"><label className="inp-l">학과</label><input className="inp" placeholder="컴퓨터소프트웨어학부" value={fDept} onChange={e => setFDept(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">전화번호</label><input className="inp" placeholder="010-0000-0000" value={fPhone} onChange={e => setFPhone(formatPhone(e.target.value))} /></div>
+              <div className="inp-g"><label className="inp-l">이메일</label><input className="inp" placeholder="example@email.com" value={fEmail} onChange={e => setFEmail(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">기수</label><select className="inp" value={fGen} onChange={e => setFGen(e.target.value)}><option value="">선택</option>{GENERATIONS.map(g => <option key={g}>{g}</option>)}</select></div>
               <div className="inp-g"><label className="inp-l">직책</label><select className="inp" value={fRole} onChange={e => setFRole(e.target.value)}><option value="">선택</option><option>회장</option><option>부회장</option><option>총무</option><option>팀장</option><option>부원</option></select></div>
               <div className="inp-g"><label className="inp-l">소속 팀</label><select className="inp" value={fTeam} onChange={e => setFTeam(e.target.value)}><option value="">선택</option><option>추진체 팀</option><option>전자 팀</option><option>구조 팀</option><option>운영 팀</option></select></div>
               <button className="btn btn-fill" onClick={saveMem}>저장하기</button>
@@ -303,7 +739,7 @@ export default function Home() {
           )}
         </div>
 
-        {/* GOOGLE DRIVE */}
+        {/* ════════ GOOGLE DRIVE ════════ */}
         <div className={`scr ${screen === 'drive' ? 'on' : ''}`}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
             <button style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: 0 }} onClick={() => go('home')}>
@@ -348,7 +784,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* REPORT */}
+        {/* ════════ REPORT ════════ */}
         <div className={`scr ${screen === 'report' ? 'on' : ''}`}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
             <h2 style={{ margin: 0 }}>회계 리포트</h2>
@@ -405,41 +841,80 @@ export default function Home() {
           )}
         </div>
 
-        {/* MYPAGE */}
+        {/* ════════ MY PAGE ════════ */}
         <div className={`scr ${screen === 'my' ? 'on' : ''}`}>
-          <div className="pro-row">
-            <div className="avatar">O</div>
-            <div><div className="pro-name">OOO</div><div className="pro-role">HELIOS 7기 · 총무</div></div>
-          </div>
-          <div className="stripe"></div>
-          <div className="grid2" style={{ marginBottom: 12 }}>
-            <div className="metric"><span className="up">활동 로그</span><div className="val">{logC}<span style={{ fontSize: 13, fontWeight: 300, color: 'var(--muted)' }}>건</span></div></div>
-            <div className="metric"><span className="up">내 증빙</span><div className="val">{rcptC}<span style={{ fontSize: 13, fontWeight: 300, color: 'var(--muted)' }}>건</span></div></div>
-          </div>
-          <div className="card" style={{ padding: '0 16px' }}>
-            {[['ti-history','나의 활동 이력'],['ti-receipt-2','내가 올린 증빙']].map(([icon, label]) => (
-              <div className="menu-i" key={label}><div className="menu-l"><i className={`ti ${icon}`}></i> {label}</div><i className="ti ti-chevron-right menu-r"></i></div>
-            ))}
-          </div>
-          <div className="card" style={{ padding: '0 16px', marginTop: 8 }}>
-            <h3 style={{ paddingTop: 16 }}>연동 서비스</h3>
-            {[['ti-brand-google','Google 계정','--google'],['ti-brand-google-drive','Google Drive','--gdrive'],['ti-forms','Google Forms','--google']].map(([icon, label, cv]) => (
-              <div className="menu-i" key={label}><div className="menu-l"><i className={`ti ${icon}`} style={{ color: `var(${cv})` }}></i> {label}</div><span className="badge badge-ok">연결됨</span></div>
-            ))}
-          </div>
-          <div className="card" style={{ padding: '0 16px', marginTop: 8 }}>
-            {[['ti-bell','알림 설정'],['ti-lock','개인정보 관리']].map(([icon, label]) => (
-              <div className="menu-i" key={label}><div className="menu-l"><i className={`ti ${icon}`}></i> {label}</div><i className="ti ti-chevron-right menu-r"></i></div>
-            ))}
-            <div className="menu-i" onClick={() => go('onboard')}>
-              <div className="menu-l"><i className="ti ti-logout" style={{ color: 'var(--warn)' }}></i> <span style={{ color: 'var(--warn)' }}>로그아웃</span></div>
-              <i className="ti ti-chevron-right menu-r"></i>
+          {user ? (
+            <>
+              <div className="pro-row">
+                <div className="avatar">{user.name.charAt(0)}</div>
+                <div><div className="pro-name">{user.name}</div><div className="pro-role">HELIOS {user.generation} · 총무</div></div>
+              </div>
+              <div className="stripe"></div>
+
+              {/* 내 프로필 정보 */}
+              <div className="card" style={{ padding: '4px 16px', marginBottom: 8 }}>
+                <h3 style={{ paddingTop: 12 }}>내 프로필</h3>
+                <div className="pro-edit-row">
+                  <div className="pro-edit-label">이름</div>
+                  <div className="pro-edit-value">{user.name}</div>
+                </div>
+                <div className="pro-edit-row">
+                  <div className="pro-edit-label">학번</div>
+                  <div className="pro-edit-value">{user.studentId}</div>
+                </div>
+                <div className="pro-edit-row">
+                  <div className="pro-edit-label">학과</div>
+                  <div className="pro-edit-value">{user.department}</div>
+                </div>
+                <div className="pro-edit-row">
+                  <div className="pro-edit-label">전화번호</div>
+                  <div className="pro-edit-value">{user.phone}</div>
+                </div>
+                <div className="pro-edit-row">
+                  <div className="pro-edit-label">이메일</div>
+                  <div className="pro-edit-value">{user.email}</div>
+                </div>
+                <div className="pro-edit-row">
+                  <div className="pro-edit-label">기수</div>
+                  <div className="pro-edit-value">{user.generation}</div>
+                </div>
+              </div>
+
+              <div className="grid2" style={{ marginBottom: 12 }}>
+                <div className="metric"><span className="up">활동 로그</span><div className="val">{logC}<span style={{ fontSize: 13, fontWeight: 300, color: 'var(--muted)' }}>건</span></div></div>
+                <div className="metric"><span className="up">내 증빙</span><div className="val">{rcptC}<span style={{ fontSize: 13, fontWeight: 300, color: 'var(--muted)' }}>건</span></div></div>
+              </div>
+              <div className="card" style={{ padding: '0 16px' }}>
+                {[['ti-history','나의 활동 이력'],['ti-receipt-2','내가 올린 증빙']].map(([icon, label]) => (
+                  <div className="menu-i" key={label}><div className="menu-l"><i className={`ti ${icon}`}></i> {label}</div><i className="ti ti-chevron-right menu-r"></i></div>
+                ))}
+              </div>
+              <div className="card" style={{ padding: '0 16px', marginTop: 8 }}>
+                <h3 style={{ paddingTop: 16 }}>연동 서비스</h3>
+                {[['ti-brand-google','Google 계정','--google'],['ti-brand-google-drive','Google Drive','--gdrive'],['ti-forms','Google Forms','--google']].map(([icon, label, cv]) => (
+                  <div className="menu-i" key={label}><div className="menu-l"><i className={`ti ${icon}`} style={{ color: `var(${cv})` }}></i> {label}</div><span className="badge badge-ok">연결됨</span></div>
+                ))}
+              </div>
+              <div className="card" style={{ padding: '0 16px', marginTop: 8 }}>
+                {[['ti-bell','알림 설정'],['ti-lock','개인정보 관리']].map(([icon, label]) => (
+                  <div className="menu-i" key={label}><div className="menu-l"><i className={`ti ${icon}`}></i> {label}</div><i className="ti ti-chevron-right menu-r"></i></div>
+                ))}
+                <div className="menu-i" onClick={handleLogout}>
+                  <div className="menu-l"><i className="ti ti-logout" style={{ color: 'var(--warn)' }}></i> <span style={{ color: 'var(--warn)' }}>로그아웃</span></div>
+                  <i className="ti ti-chevron-right menu-r"></i>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="onb-center">
+              <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>로그인이 필요합니다</div>
+              <button className="btn btn-fill" onClick={() => go('login')}>로그인</button>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
-      {/* BOTTOM NAV */}
+      {/* ════════ BOTTOM NAV ════════ */}
       {showNav && (
         <div className="nav">
           {[['home','홈','ti-home'],['input','기록','ti-plus'],['report','리포트','ti-chart-bar'],['my','내 정보','ti-user']].map(([key, label, icon]) => (
@@ -450,7 +925,21 @@ export default function Home() {
         </div>
       )}
 
-      {/* TOAST */}
+      {/* ════════ CONFIRM DELETE DIALOG ════════ */}
+      {confirmDelete && (
+        <div className="confirm-overlay">
+          <div className="confirm-box">
+            <h3>부원 삭제</h3>
+            <div className="cap">{confirmDelete.name}({confirmDelete.studentId}) 부원을 삭제하시겠습니까?<br/>이 작업은 되돌릴 수 없습니다.</div>
+            <div className="confirm-btns">
+              <button className="btn btn-ghost" onClick={() => setConfirmDelete(null)}>취소</button>
+              <button className="btn btn-fill" style={{ background: 'var(--warn)', borderColor: 'var(--warn)' }} onClick={() => handleDeleteMember(confirmDelete.id)}>삭제</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ════════ TOAST ════════ */}
       <div className={`toast ${toast ? 'show' : ''}`}>{toast}</div>
     </div>
   );
