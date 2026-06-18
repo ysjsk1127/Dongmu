@@ -117,6 +117,26 @@ export function updateProfile(updates) {
   return { success: true, user: sessionUser };
 }
 
+// 사용자 동아리 정보 등록/변경
+export function setUserClub(userId, clubId) {
+  const users = getUsers();
+  const idx = users.findIndex(u => u.id === userId);
+  if (idx === -1) return { success: false, error: '사용자를 찾을 수 없습니다.' };
+
+  users[idx].clubId = clubId;
+  saveUsers(users);
+
+  // 현재 세션 유저와 동일하면 세션 정보도 갱신
+  const session = getCurrentUser();
+  if (session && session.id === userId) {
+    session.clubId = clubId;
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  }
+
+  return { success: true, user: users[idx] };
+}
+
+
 // 유효성 검증 헬퍼
 export const validators = {
   email: (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v),

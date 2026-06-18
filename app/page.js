@@ -1,8 +1,14 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { signup, login, logout, getCurrentUser, updateProfile, validators, formatPhone, formatStudentId } from './lib/auth';
+import { signup, login, logout, getCurrentUser, updateProfile, setUserClub, validators, formatPhone, formatStudentId } from './lib/auth';
 import { getMembers, addMember, deleteMember, searchMembers, getMemberCount } from './lib/members';
+import { createClub, getClubs, searchClubs, getClubById } from './lib/clubs';
+import { getSchedules, addSchedule, deleteSchedule, getUpcoming, getScheduleCount, formatScheduleDate, SCHEDULE_CATEGORIES } from './lib/schedule';
+import { getDocuments, addDocument, deleteDocument, getDocStats, getDocumentCount, classifyDocument, categoryMeta, DOC_CATEGORIES } from './lib/documents';
+import { getSponsors, addSponsor, deleteSponsor, searchSponsors, getTotalSupport, getSponsorCount, formatAmount, SPONSOR_TYPES } from './lib/sponsors';
+import { getAlumni, addAlumnus, deleteAlumnus, searchAlumni, getAlumniCount, getMentorCount } from './lib/alumni';
+
 
 /* ───── Google Icon SVG ───── */
 function GoogleIcon() {
@@ -24,13 +30,23 @@ const GENERATIONS = Array.from({ length: 10 }, (_, i) => `${i + 1}기`);
 export default function Home() {
   /* ── Navigation ── */
   const [screen, setScreen] = useState('onboard');
-  const [tab, setTab] = useState('form');
+  const [tab, setTab] = useState('mem');
   const [toast, setToast] = useState('');
   const areaRef = useRef(null);
 
   /* ── Auth state ── */
   const [user, setUser] = useState(null);
   const [authError, setAuthError] = useState('');
+  const [activeClub, setActiveClub] = useState(null);
+
+  /* ── Club Select state ── */
+  const [clubSelectMode, setClubSelectMode] = useState('choose'); // 'choose', 'create', 'join'
+  const [newClubName, setNewClubName] = useState('');
+  const [newClubDate, setNewClubDate] = useState('');
+  const [clubSearchQuery, setClubSearchQuery] = useState('');
+  const [foundClubs, setFoundClubs] = useState([]);
+  const [clubError, setClubError] = useState('');
+
 
   /* ── Login form ── */
   const [loginEmail, setLoginEmail] = useState('');
@@ -51,11 +67,7 @@ export default function Home() {
   const [memC, setMemC] = useState(0);
   const [logC, setLogC] = useState(0);
   const [rcptC, setRcptC] = useState(0);
-  const [formLoaded, setFormLoaded] = useState(false);
-  const [checks, setChecks] = useState([true, true, true]);
   const [pkgOpen, setPkgOpen] = useState(false);
-  const [syncText, setSyncText] = useState('Google Forms · 마지막 동기화: 5분 전');
-  const [syncing, setSyncing] = useState(false);
 
   /* ── Member registration form ── */
   const [fName, setFName] = useState('');
@@ -77,24 +89,93 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(null);
 
-  /* ── Mock form imports ── */
-  const MOCK_IMPORTS = [
-    { name: '김하늘', studentId: '2024010001', department: '기계공학과', phone: '010-1234-5678', generation: '7기', detail: '7기 · 구조 팀 · 010-1234-5678' },
-    { name: '이준호', studentId: '2024010002', department: '전자공학과', phone: '010-2345-6789', generation: '7기', detail: '7기 · 전자 팀 · 010-2345-6789' },
-    { name: '박서윤', studentId: '2024010003', department: '항공우주공학과', phone: '010-3456-7890', generation: '7기', detail: '7기 · 추진체 팀 · 010-3456-7890' },
-  ];
+  /* ── Schedule (일정) ── */
+  const [scheduleList, setScheduleList] = useState([]);
+  const [schC, setSchC] = useState(0);
+  const [schAdd, setSchAdd] = useState(false);
+  const [schTitle, setSchTitle] = useState('');
+  const [schDate, setSchDate] = useState('');
+  const [schCat, setSchCat] = useState('회의');
+  const [schLoc, setSchLoc] = useState('');
+
+  /* ── Documents (자료) ── */
+  const [docList, setDocList] = useState([]);
+  const [docStats, setDocStats] = useState([]);
+  const [docC, setDocC] = useState(0);
+  const [docFilter, setDocFilter] = useState('전체');
+  const [docName, setDocName] = useState('');
+  const [docPreview, setDocPreview] = useState('');
+
+  /* ── Sponsors (후원자) ── */
+  const [sponsorList, setSponsorList] = useState([]);
+  const [sponsorTotal, setSponsorTotal] = useState(0);
+  const [spnAdd, setSpnAdd] = useState(false);
+  const [spnName, setSpnName] = useState('');
+  const [spnType, setSpnType] = useState('기업');
+  const [spnAmt, setSpnAmt] = useState('');
+  const [spnManager, setSpnManager] = useState('');
+  const [spnContact, setSpnContact] = useState('');
+  const [spnStatus, setSpnStatus] = useState('완료');
+
+  /* ── Alumni (졸업 선배) ── */
+  const [alumniList, setAlumniList] = useState([]);
+  const [mentorC, setMentorC] = useState(0);
+  const [almAdd, setAlmAdd] = useState(false);
+  const [almName, setAlmName] = useState('');
+  const [almGen, setAlmGen] = useState('');
+  const [almYear, setAlmYear] = useState('');
+  const [almCompany, setAlmCompany] = useState('');
+  const [almPosition, setAlmPosition] = useState('');
+  const [almPhone, setAlmPhone] = useState('');
+  const [almMentoring, setAlmMentoring] = useState(false);
+
+  /* ── Generic delete dialog for new modules ── */
+  const [confirmDel2, setConfirmDel2] = useState(null); // { type, id, name }
+
 
   /* ───── Effects ───── */
   const refreshData = useCallback(() => {
-    setMemC(getMemberCount());
-    setMembersList(searchQuery ? searchMembers(searchQuery) : getMembers());
+    const currentUser = getCurrentUser();
+    const clubId = currentUser ? currentUser.clubId : null;
+    setMemC(getMemberCount(clubId));
+    setMembersList(searchQuery ? searchMembers(searchQuery, clubId) : getMembers(clubId));
+
+    // 일정
+    setScheduleList(getSchedules(clubId));
+    setSchC(getScheduleCount(clubId));
+
+    // 자료
+    setDocList(getDocuments(clubId));
+    setDocStats(getDocStats(clubId));
+    setDocC(getDocumentCount(clubId));
+
+    // 후원자
+    setSponsorList(searchQuery ? searchSponsors(searchQuery, clubId) : getSponsors(clubId));
+    setSponsorTotal(getTotalSupport(clubId));
+
+    // 졸업 선배
+    setAlumniList(searchQuery ? searchAlumni(searchQuery, clubId) : getAlumni(clubId));
+    setMentorC(getMentorCount(clubId));
   }, [searchQuery]);
 
   useEffect(() => {
     const u = getCurrentUser();
     if (u) {
       setUser(u);
-      setScreen('home');
+      if (u.clubId) {
+        const club = getClubById(u.clubId);
+        if (club) {
+          setActiveClub(club);
+          setScreen('home');
+        } else {
+          // 동아리가 정보가 없어진 경우 선택창으로
+          setUserClub(u.id, null);
+          setActiveClub(null);
+          setScreen('club-select');
+        }
+      } else {
+        setScreen('club-select');
+      }
     }
     refreshData();
   }, [refreshData]);
@@ -103,10 +184,12 @@ export default function Home() {
     refreshData();
   }, [searchQuery, refreshData]);
 
+
   /* ───── Helpers ───── */
   function go(id) {
     setScreen(id);
     setAuthError('');
+    setSearchQuery('');
     if (areaRef.current) areaRef.current.scrollTop = 0;
   }
 
@@ -119,7 +202,7 @@ export default function Home() {
     setSignupTouched(prev => ({ ...prev, [field]: true }));
   }
 
-  /* ───── Auth Actions ───── */
+  /* ───── Auth & Club Actions ───── */
   async function handleSignup() {
     // Mark all fields as touched
     setSignupTouched({ name: true, studentId: true, dept: true, phone: true, email: true, gen: true, pw: true, pwConfirm: true });
@@ -151,7 +234,9 @@ export default function Home() {
     showToast(`${result.user.name}님, 환영합니다!`);
     resetSignupForm();
     refreshData();
-    go('home');
+    setClubSelectMode('choose');
+    setClubError('');
+    go('club-select');
   }
 
   async function handleLogin() {
@@ -171,12 +256,31 @@ export default function Home() {
     setLoginEmail('');
     setLoginPw('');
     refreshData();
-    go('home');
+
+    if (result.user.clubId) {
+      const club = getClubById(result.user.clubId);
+      if (club) {
+        setActiveClub(club);
+        go('home');
+      } else {
+        // Linked club was not found
+        setUserClub(result.user.id, null);
+        setActiveClub(null);
+        setClubSelectMode('choose');
+        setClubError('');
+        go('club-select');
+      }
+    } else {
+      setClubSelectMode('choose');
+      setClubError('');
+      go('club-select');
+    }
   }
 
   function handleLogout() {
     logout();
     setUser(null);
+    setActiveClub(null);
     go('onboard');
     showToast('로그아웃 되었습니다.');
   }
@@ -188,11 +292,87 @@ export default function Home() {
     setAuthError('');
   }
 
+  /* ───── Club Actions ───── */
+  function handleCreateClub() {
+    if (!newClubName.trim()) {
+      setClubError('동아리 이름을 입력해주세요.');
+      return;
+    }
+    if (!newClubDate) {
+      setClubError('최초 시작한 날짜를 선택해주세요.');
+      return;
+    }
+
+    const res = createClub(newClubName, newClubDate);
+    if (!res.success) {
+      setClubError(res.error);
+      return;
+    }
+
+    const userRes = setUserClub(user.id, res.club.id);
+    if (!userRes.success) {
+      setClubError(userRes.error);
+      return;
+    }
+
+    setUser(userRes.user);
+    setActiveClub(res.club);
+    showToast(`"${res.club.name}" 동아리가 생성되었습니다.`);
+
+    setNewClubName('');
+    setNewClubDate('');
+    setClubError('');
+    setClubSelectMode('choose');
+
+    refreshData();
+    go('home');
+  }
+
+  function handleJoinClub(clubId) {
+    if (!user) return;
+    const club = getClubById(clubId);
+    if (!club) {
+      setClubError('해당 동아리를 찾을 수 없습니다.');
+      return;
+    }
+
+    const userRes = setUserClub(user.id, clubId);
+    if (!userRes.success) {
+      setClubError(userRes.error);
+      return;
+    }
+
+    setUser(userRes.user);
+    setActiveClub(club);
+    showToast(`"${club.name}" 동아리에 가입되었습니다.`);
+
+    setClubSearchQuery('');
+    setFoundClubs([]);
+    setClubError('');
+    setClubSelectMode('choose');
+
+    refreshData();
+    go('home');
+  }
+
+  // 동아리 검색 목록 업데이트
+  useEffect(() => {
+    if (screen === 'club-select') {
+      if (clubSearchQuery.trim()) {
+        setFoundClubs(searchClubs(clubSearchQuery));
+      } else {
+        setFoundClubs(getClubs());
+      }
+    }
+  }, [clubSearchQuery, screen]);
+
+
   /* ───── Member Actions ───── */
   function saveMem() {
     if (!fName) { showToast('이름을 입력해주세요'); return; }
 
     const result = addMember({
+      clubId: user ? user.clubId : '',
       name: fName,
       studentId: fStudentId,
       department: fDept,
@@ -224,60 +404,95 @@ export default function Home() {
     setConfirmDelete(null);
   }
 
-  function importMembers() {
-    const count = checks.filter(Boolean).length;
-    if (count === 0) { showToast('선택된 부원이 없습니다'); return; }
 
-    let added = 0;
-    MOCK_IMPORTS.forEach((m, i) => {
-      if (checks[i]) {
-        const result = addMember({
-          name: m.name,
-          studentId: m.studentId,
-          department: m.department,
-          phone: m.phone,
-          generation: m.generation,
-          role: '부원',
-          team: '',
-        });
-        if (result.success) added++;
-      }
+  /* ───── Schedule Actions ───── */
+  function saveSchedule() {
+    const res = addSchedule({
+      clubId: user ? user.clubId : '',
+      title: schTitle,
+      date: schDate,
+      category: schCat,
+      location: schLoc,
     });
-
-    showToast(`${added}명 일괄 등록 완료`);
+    if (!res.success) { showToast(res.error); return; }
+    showToast('일정이 등록되었습니다');
+    setSchTitle(''); setSchDate(''); setSchCat('회의'); setSchLoc('');
+    setSchAdd(false);
     refreshData();
-    setTimeout(() => { setFormLoaded(false); go('home'); }, 1500);
   }
 
-  /* ───── Sync & Forms ───── */
-  function syncForms() {
-    setSyncing(true);
-    setSyncText('동기화 중...');
-    setTimeout(() => {
-      setSyncing(false);
-      setSyncText('Google Forms · 방금 동기화 완료');
-      showToast('동기화 완료 — 새 응답 없음');
-    }, 1500);
+  /* ───── Document Actions ───── */
+  function saveDocument() {
+    if (!docName.trim()) { showToast('파일명을 입력해주세요'); return; }
+    const res = addDocument({
+      clubId: user ? user.clubId : '',
+      name: docName,
+      uploadedBy: user ? user.name : '',
+    });
+    if (!res.success) { showToast(res.error); return; }
+    showToast(`"${res.category}" 폴더로 자동 분류되었습니다`);
+    setDocName('');
+    setDocPreview('');
+    refreshData();
   }
 
-  function loadForm() {
-    setFormLoaded(true);
-    setChecks([true, true, true]);
-    showToast('3건의 새 응답을 불러왔습니다');
+  /* ───── Sponsor Actions ───── */
+  function saveSponsor() {
+    const res = addSponsor({
+      clubId: user ? user.clubId : '',
+      name: spnName,
+      type: spnType,
+      amount: spnAmt,
+      manager: spnManager,
+      contact: spnContact,
+      status: spnStatus,
+    });
+    if (!res.success) { showToast(res.error); return; }
+    showToast('후원 내역이 등록되었습니다');
+    setSpnName(''); setSpnType('기업'); setSpnAmt(''); setSpnManager(''); setSpnContact(''); setSpnStatus('완료');
+    setSpnAdd(false);
+    refreshData();
   }
 
-  function toggleCheck(i) {
-    const next = [...checks];
-    next[i] = !next[i];
-    setChecks(next);
+  /* ───── Alumni Actions ───── */
+  function saveAlumnus() {
+    const res = addAlumnus({
+      clubId: user ? user.clubId : '',
+      name: almName,
+      generation: almGen,
+      graduationYear: almYear,
+      company: almCompany,
+      position: almPosition,
+      phone: almPhone,
+      mentoring: almMentoring,
+    });
+    if (!res.success) { showToast(res.error); return; }
+    showToast('졸업 선배가 등록되었습니다');
+    setAlmName(''); setAlmGen(''); setAlmYear(''); setAlmCompany(''); setAlmPosition(''); setAlmPhone(''); setAlmMentoring(false);
+    setAlmAdd(false);
+    refreshData();
   }
+
+  /* ───── Generic delete for new modules ───── */
+  function handleConfirmDel2() {
+    if (!confirmDel2) return;
+    const { type, id } = confirmDel2;
+    let res = { success: false };
+    if (type === 'schedule') res = deleteSchedule(id);
+    else if (type === 'document') res = deleteDocument(id);
+    else if (type === 'sponsor') res = deleteSponsor(id);
+    else if (type === 'alumni') res = deleteAlumnus(id);
+    if (res.success) { showToast('삭제되었습니다'); refreshData(); }
+    setConfirmDel2(null);
+  }
+
 
   /* ───── Expense ───── */
   function saveExp() {
     if (!fCat || !fAmt) { showToast('필수 항목을 입력해주세요'); return; }
     setRcptC(prev => prev + 1);
     setLogC(prev => prev + 1);
-    showToast('증빙 등록 완료 → Drive 자동 저장');
+    showToast('증빙 등록 완료');
     setFCat(''); setFAmt(''); setFMemo('');
     setTimeout(() => go('report'), 1200);
   }
@@ -296,12 +511,12 @@ export default function Home() {
   }
 
   /* ───── Nav state ───── */
-  const navMap = { home: 'home', input: 'input', report: 'report', my: 'my', drive: 'home', members: 'home' };
+  const navMap = { home: 'home', input: 'input', report: 'report', my: 'my', drive: 'home', members: 'home', schedule: 'home', sponsors: 'home', alumni: 'home' };
   const activeNav = navMap[screen] || screen;
-  const showNav = !['onboard', 'login', 'signup'].includes(screen);
+  const showNav = !['onboard', 'login', 'signup', 'club-select'].includes(screen);
 
   return (
-    <div className="shell">
+    <div className={`shell${showNav ? ' has-nav' : ''}`}>
       <div className="area" ref={areaRef}>
 
         {/* ════════ ONBOARDING ════════ */}
@@ -314,7 +529,7 @@ export default function Home() {
               동아리 운영의 모든 것을<br/>하나의 앱으로 통합 관리
             </div>
             <div style={{ display: 'flex', gap: 32, marginBottom: 36 }}>
-              {[['ti-users','부원'],['ti-receipt','회계'],['ti-brand-google','연동']].map(([icon, label]) => (
+              {[['ti-users','부원'],['ti-receipt','회계']].map(([icon, label]) => (
                 <div key={label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
                   <i className={`ti ${icon}`} style={{ fontSize: 22, color: 'var(--blue)' }}></i>
                   <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: 'var(--muted)' }}>{label}</span>
@@ -327,9 +542,6 @@ export default function Home() {
             <button className="btn btn-ghost" style={{ maxWidth: 300 }} onClick={() => go('login')}>
               로그인
             </button>
-            <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 16 }}>
-              이미 동아리가 있나요? <span style={{ color: 'var(--blue)', cursor: 'pointer' }}>코드로 참여</span>
-            </p>
           </div>
         </div>
 
@@ -514,11 +726,181 @@ export default function Home() {
           </div>
         </div>
 
+        {/* ════════ CLUB SELECT (CREATE / JOIN) ════════ */}
+        <div className={`scr ${screen === 'club-select' ? 'on' : ''}`}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+            <button
+              className="back-btn"
+              onClick={() => {
+                if (clubSelectMode !== 'choose') {
+                  setClubSelectMode('choose');
+                  setClubError('');
+                } else {
+                  handleLogout();
+                }
+              }}
+            >
+              <i className="ti ti-arrow-left" style={{ fontSize: 22 }}></i>
+            </button>
+            <h2 style={{ margin: 0 }}>
+              {clubSelectMode === 'choose' && '동아리 연결'}
+              {clubSelectMode === 'create' && '새로운 동아리 생성'}
+              {clubSelectMode === 'join' && '기존 동아리 가입'}
+            </h2>
+          </div>
+          
+          <div className="auth-sub">
+            {clubSelectMode === 'choose' && '동아리를 생성하거나 이미 생성된 동아리에 가입해 주세요.'}
+            {clubSelectMode === 'create' && '새로 개설할 동아리의 정보와 설립일을 설정해 주세요.'}
+            {clubSelectMode === 'join' && '가입하고자 하는 동아리의 이름을 검색해 주세요.'}
+          </div>
+
+          {clubError && (
+            <div className="auth-error-box" style={{ marginBottom: 16 }}>
+              <i className="ti ti-alert-triangle"></i>
+              <span>{clubError}</span>
+            </div>
+          )}
+
+          {/* CHOOSE MODE */}
+          {clubSelectMode === 'choose' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 12 }}>
+              <div 
+                className="card" 
+                style={{ cursor: 'pointer', transition: 'border-color 0.2s', borderColor: 'var(--hair)' }}
+                onClick={() => { setClubSelectMode('create'); setClubError(''); }}
+                onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--blue)'}
+                onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--hair)'}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                  <div style={{ width: 44, height: 44, background: 'rgba(28,105,212,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 4, flexShrink: 0 }}>
+                    <i className="ti ti-folder-plus" style={{ fontSize: 22, color: 'var(--blue)' }}></i>
+                  </div>
+                  <div>
+                    <h3 style={{ margin: '0 0 4px 0', textTransform: 'none', letterSpacing: 0, fontSize: 15, color: 'var(--ink)' }}>새로운 동아리 생성</h3>
+                    <div className="cap">동아리 관리자 권한으로 새 동아리 페이지를 개설합니다.</div>
+                  </div>
+                </div>
+              </div>
+
+              <div 
+                className="card" 
+                style={{ cursor: 'pointer', transition: 'border-color 0.2s', borderColor: 'var(--hair)' }}
+                onClick={() => { setClubSelectMode('join'); setClubError(''); }}
+                onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--blue)'}
+                onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--hair)'}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                  <div style={{ width: 44, height: 44, background: 'rgba(15,163,54,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 4, flexShrink: 0 }}>
+                    <i className="ti ti-login" style={{ fontSize: 22, color: 'var(--ok)' }}></i>
+                  </div>
+                  <div>
+                    <h3 style={{ margin: '0 0 4px 0', textTransform: 'none', letterSpacing: 0, fontSize: 15, color: 'var(--ink)' }}>기존 동아리에 가입</h3>
+                    <div className="cap">이미 생성되어 운영 중인 동아리를 검색하여 참여합니다.</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* CREATE MODE */}
+          {clubSelectMode === 'create' && (
+            <div className="auth-form">
+              <div className="inp-g">
+                <label className="inp-l">동아리 이름 *</label>
+                <input 
+                  className="inp" 
+                  placeholder="예: HELIOS, 멋쟁이사자처럼" 
+                  value={newClubName} 
+                  onChange={e => setNewClubName(e.target.value)} 
+                />
+              </div>
+              <div className="inp-g">
+                <label className="inp-l">최초 시작한 날짜 (설립일) *</label>
+                <input 
+                  type="date"
+                  className="inp" 
+                  value={newClubDate} 
+                  onChange={e => setNewClubDate(e.target.value)} 
+                />
+              </div>
+              <button className="btn btn-fill" onClick={handleCreateClub} style={{ marginTop: 24 }}>
+                동아리 생성 완료
+              </button>
+              <button className="btn btn-ghost" style={{ marginTop: 8 }} onClick={() => { setClubSelectMode('choose'); setClubError(''); }}>
+                <i className="ti ti-arrow-left" style={{ fontSize: 16 }}></i> 돌아가기
+              </button>
+            </div>
+          )}
+
+          {/* JOIN MODE */}
+          {clubSelectMode === 'join' && (
+            <div>
+              <div className="search-bar" style={{ marginBottom: 16 }}>
+                <div className="search-wrap">
+                  <i className="ti ti-search"></i>
+                  <input 
+                    className="inp" 
+                    placeholder="동아리 이름 검색..." 
+                    value={clubSearchQuery} 
+                    onChange={e => setClubSearchQuery(e.target.value)} 
+                  />
+                </div>
+              </div>
+
+              <div className="card" style={{ padding: '8px 16px', maxHeight: 350, overflowY: 'auto' }}>
+                {foundClubs.length === 0 ? (
+                  <div className="empty-state" style={{ padding: '30px 10px' }}>
+                    <i className="ti ti-folder-off" style={{ fontSize: 36, color: 'var(--hair)', marginBottom: 8, display: 'block', margin: '0 auto' }}></i>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--muted)', marginTop: 8 }}>
+                      {clubSearchQuery.trim() ? '검색된 동아리가 없습니다.' : '생성된 동아리가 없습니다.'}
+                    </div>
+                    <div className="cap" style={{ marginTop: 4 }}>
+                      직접 첫 동아리를 생성해 보시는 건 어떨까요?
+                    </div>
+                  </div>
+                ) : (
+                  foundClubs.map((club) => (
+                    <div 
+                      key={club.id} 
+                      style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'space-between', 
+                        padding: '14px 0', 
+                        borderBottom: '1px solid var(--hair)' 
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{club.name}</div>
+                        <div className="cap" style={{ marginTop: 2 }}>설립일: {club.startDate}</div>
+                      </div>
+                      <button 
+                        className="btn btn-fill btn-sm" 
+                        style={{ height: 32, fontSize: 11, background: 'var(--ok)', borderColor: 'var(--ok)' }} 
+                        onClick={() => handleJoinClub(club.id)}
+                      >
+                        가입하기
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+              <button className="btn btn-ghost" style={{ marginTop: 12 }} onClick={() => { setClubSelectMode('choose'); setClubError(''); setClubSearchQuery(''); }}>
+                <i className="ti ti-arrow-left" style={{ fontSize: 16 }}></i> 돌아가기
+              </button>
+            </div>
+          )}
+        </div>
+
         {/* ════════ HOME ════════ */}
         <div className={`scr ${screen === 'home' ? 'on' : ''}`}>
-          <div className="up" style={{ marginBottom: 4 }}>한양대학교 로켓연구회</div>
+          <div className="up" style={{ marginBottom: 4 }}>
+            {activeClub ? `설립일: ${activeClub.startDate}` : '한양대학교 로켓연구회'}
+          </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-            <h1>HELIOS</h1>
+            <h1>{activeClub ? activeClub.name : 'HELIOS'}</h1>
+
             <div style={{ position: 'relative', cursor: 'pointer' }}>
               <i className="ti ti-bell" style={{ fontSize: 24, color: 'var(--muted)' }}></i>
               <span style={{ position: 'absolute', top: -2, right: -2, width: 8, height: 8, background: 'var(--warn)', border: '2px solid var(--canvas)' }}></span>
@@ -526,62 +908,84 @@ export default function Home() {
           </div>
           <div className="stripe"></div>
 
-          <div className="sync-bar">
-            <i className={`ti ti-refresh ${syncing ? 'pulse' : ''}`}></i>
-            <span>{syncText}</span>
-            <span style={{ marginLeft: 'auto', cursor: 'pointer' }} onClick={syncForms}>
-              <i className="ti ti-refresh" style={{ fontSize: 14 }}></i>
-            </span>
-          </div>
-
-          <div className="grid2" style={{ marginBottom: 12 }}>
-            <div className="metric" onClick={() => go('members')}>
-              <span className="up">총 부원</span>
-              <div className="val">{memC}<span style={{ fontSize: 13, fontWeight: 300, color: 'var(--muted)' }}>명</span></div>
-            </div>
-            <div className="metric">
-              <span className="up">회비 납부율</span>
-              <div className="val" style={{ color: 'var(--blue)' }}>87<span style={{ fontSize: 13, fontWeight: 300 }}>%</span></div>
-            </div>
-            <div className="metric" onClick={() => { go('input'); setTab('exp'); }}>
-              <span className="up">이번 달 지출</span>
-              <div className="val">320<span style={{ fontSize: 13, fontWeight: 300, color: 'var(--muted)' }}>K</span></div>
-            </div>
-            <div className="metric" onClick={() => { go('input'); setTab('exp'); }}>
-              <span className="up">미처리 증빙</span>
-              <div className="val" style={{ color: 'var(--warn)' }}>3<span style={{ fontSize: 13, fontWeight: 300 }}>건</span></div>
-            </div>
-          </div>
-
-          <div className="card" onClick={() => go('drive')} style={{ cursor: 'pointer' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <h3 style={{ marginBottom: 0 }}><i className="ti ti-brand-google-drive" style={{ color: 'var(--gdrive)', fontSize: 16, verticalAlign: -2, marginRight: 6 }}></i>Google Drive</h3>
-              <span className="badge badge-ok">연결됨</span>
-            </div>
-            <div className="file-i" style={{ padding: '8px 0', border: 'none' }}>
-              <div className="file-icon" style={{ color: 'var(--blue)' }}><i className="ti ti-folder"></i></div>
-              <div className="file-info"><div className="file-name">HELIOS 2026-1</div><div className="file-meta">파일 23개 · 1.2 GB</div></div>
-              <i className="ti ti-chevron-right" style={{ color: 'var(--muted)', fontSize: 16 }}></i>
-            </div>
-          </div>
-
-          <div className="card">
-            <h3>다가오는 일정</h3>
-            {[
-              { color: 'var(--blue)', name: '정기회의', date: '06/02 18:00' },
-              { color: 'var(--warn)', name: '로켓 발사 테스트', date: '06/10 14:00' },
-              { color: 'var(--ok)', name: '신입 부원 OT', date: '06/15 10:00' },
-            ].map((s, i) => (
-              <div className="sch-i" key={i}>
-                <div className="sch-dot" style={{ background: s.color }}></div>
-                <div className="sch-t">{s.name}</div>
-                <div className="sch-d">{s.date}</div>
+          <div className="home-layout">
+            <div>
+              <div className="grid2" style={{ marginBottom: 12 }}>
+                <div className="metric" onClick={() => go('members')}>
+                  <span className="up">총 부원</span>
+                  <div className="val">{memC}<span style={{ fontSize: 13, fontWeight: 300, color: 'var(--muted)' }}>명</span></div>
+                </div>
+                <div className="metric">
+                  <span className="up">회비 납부율</span>
+                  <div className="val" style={{ color: 'var(--blue)' }}>87<span style={{ fontSize: 13, fontWeight: 300 }}>%</span></div>
+                </div>
+                <div className="metric" onClick={() => { go('input'); setTab('exp'); }}>
+                  <span className="up">이번 달 지출</span>
+                  <div className="val">320<span style={{ fontSize: 13, fontWeight: 300, color: 'var(--muted)' }}>K</span></div>
+                </div>
+                <div className="metric" onClick={() => { go('input'); setTab('exp'); }}>
+                  <span className="up">미처리 증빙</span>
+                  <div className="val" style={{ color: 'var(--warn)' }}>3<span style={{ fontSize: 13, fontWeight: 300 }}>건</span></div>
+                </div>
               </div>
-            ))}
+
+              <h3 style={{ marginTop: 8 }}>운영 관리</h3>
+              <div className="hub-grid">
+                {[
+                  { id: 'members', icon: 'ti-users', label: '부원 관리', color: 'var(--blue)' },
+                  { id: 'schedule', icon: 'ti-calendar', label: '일정 관리', color: 'var(--ok)' },
+                  { id: 'drive', icon: 'ti-folder', label: '자료 관리', color: 'var(--gdrive)' },
+                  { id: 'sponsors', icon: 'ti-heart-handshake', label: '후원자 관리', color: 'var(--warn)' },
+                  { id: 'alumni', icon: 'ti-school', label: '졸업 선배', color: 'var(--google)' },
+                  { id: 'report', icon: 'ti-chart-bar', label: '회계 리포트', color: 'var(--blue-l)' },
+                ].map(m => (
+                  <div className="hub-card" key={m.id} onClick={() => go(m.id)}>
+                    <i className={`ti ${m.icon}`} style={{ color: m.color }}></i>
+                    <span>{m.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <div className="card" style={{ marginTop: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <h3 style={{ margin: 0 }}>다가오는 일정</h3>
+                  <span className="cap" style={{ cursor: 'pointer', color: 'var(--blue)' }} onClick={() => go('schedule')}>전체보기</span>
+                </div>
+                {(() => {
+                  const now = new Date();
+                  const upcoming = scheduleList.filter(s => new Date(s.date) >= now).slice(0, 4);
+                  if (upcoming.length === 0) {
+                    return (
+                      <div className="cap" style={{ padding: '8px 0' }}>
+                        등록된 일정이 없습니다. <span style={{ color: 'var(--blue)', cursor: 'pointer' }} onClick={() => go('schedule')}>일정 추가하기</span>
+                      </div>
+                    );
+                  }
+                  return upcoming.map(s => (
+                    <div className="sch-i" key={s.id}>
+                      <div className="sch-dot" style={{ background: s.color }}></div>
+                      <div className="sch-t">{s.title}</div>
+                      <div className="sch-d">{formatScheduleDate(s.date)}</div>
+                    </div>
+                  ));
+                })()}
+              </div>
+
+              <div className="card" style={{ marginTop: 10 }}>
+                <h3 style={{ margin: '0 0 12px' }}>빠른 요약</h3>
+                <div className="sch-i"><div className="sch-dot" style={{ background: 'var(--blue)' }}></div><div className="sch-t">등록 부원</div><div className="sch-d" style={{ fontWeight: 700, color: 'var(--ink)' }}>{memC}명</div></div>
+                <div className="sch-i"><div className="sch-dot" style={{ background: 'var(--ok)' }}></div><div className="sch-t">등록 일정</div><div className="sch-d" style={{ fontWeight: 700, color: 'var(--ink)' }}>{schC}건</div></div>
+                <div className="sch-i"><div className="sch-dot" style={{ background: 'var(--gdrive)' }}></div><div className="sch-t">보관 자료</div><div className="sch-d" style={{ fontWeight: 700, color: 'var(--ink)' }}>{docC}건</div></div>
+                <div className="sch-i"><div className="sch-dot" style={{ background: 'var(--warn)' }}></div><div className="sch-t">후원 내역</div><div className="sch-d" style={{ fontWeight: 700, color: 'var(--ink)' }}>{sponsorList.length}건</div></div>
+              </div>
+
+              <button className="btn btn-fill" onClick={() => go('input')} style={{ marginTop: 4 }}>
+                <i className="ti ti-plus" style={{ fontSize: 18 }}></i> 새 기록 추가
+              </button>
+            </div>
           </div>
-          <button className="btn btn-ghost" onClick={() => go('input')} style={{ marginTop: 4 }}>
-            <i className="ti ti-plus" style={{ fontSize: 18 }}></i> 새 기록 추가
-          </button>
         </div>
 
         {/* ════════ MEMBERS LIST ════════ */}
@@ -645,62 +1049,276 @@ export default function Home() {
           </div>
         </div>
 
+        {/* ════════ SCHEDULE (일정 관리) ════════ */}
+        <div className={`scr ${screen === 'schedule' ? 'on' : ''}`}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+            <button style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: 0 }} onClick={() => go('home')}>
+              <i className="ti ti-arrow-left" style={{ fontSize: 22 }}></i>
+            </button>
+            <h2 style={{ margin: 0 }}>일정 관리</h2>
+          </div>
+          <div className="stripe"></div>
+
+          <div className="member-count-bar">
+            <div className="member-count">전체 <strong>{schC}</strong>개의 일정</div>
+            <button className="btn btn-fill btn-sm" onClick={() => setSchAdd(v => !v)}>
+              <i className={`ti ${schAdd ? 'ti-x' : 'ti-plus'}`} style={{ fontSize: 14 }}></i> {schAdd ? '닫기' : '일정 추가'}
+            </button>
+          </div>
+
+          {schAdd && (
+            <div className="card" style={{ marginBottom: 12 }}>
+              <div className="inp-g"><label className="inp-l">일정 제목 *</label><input className="inp" placeholder="예: 정기회의, 로켓 발사 테스트" value={schTitle} onChange={e => setSchTitle(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">날짜 / 시간 *</label><input type="datetime-local" className="inp" value={schDate} onChange={e => setSchDate(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">분류</label><select className="inp" value={schCat} onChange={e => setSchCat(e.target.value)}>{SCHEDULE_CATEGORIES.map(c => <option key={c.key}>{c.key}</option>)}</select></div>
+              <div className="inp-g"><label className="inp-l">장소</label><input className="inp" placeholder="예: 공학관 401호" value={schLoc} onChange={e => setSchLoc(e.target.value)} /></div>
+              <button className="btn btn-fill" onClick={saveSchedule}>일정 저장</button>
+            </div>
+          )}
+
+          <div className="card" style={{ padding: '4px 16px' }}>
+            {scheduleList.length === 0 ? (
+              <div className="empty-state">
+                <i className="ti ti-calendar-off"></i>
+                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>등록된 일정이 없습니다</div>
+                <div className="cap">위 &quot;일정 추가&quot;로 첫 일정을 등록해보세요</div>
+              </div>
+            ) : (
+              scheduleList.map(s => {
+                const past = new Date(s.date) < new Date();
+                return (
+                  <div className="member-card" key={s.id} style={{ opacity: past ? 0.5 : 1 }}>
+                    <div className="member-avatar" style={{ background: s.color, fontSize: 18 }}><i className="ti ti-calendar-event"></i></div>
+                    <div className="member-info">
+                      <div className="member-name">{s.title} {past && <span className="cap">· 종료</span>}</div>
+                      <div className="member-detail">{formatScheduleDate(s.date)} · {s.category}</div>
+                      {s.location && <div className="member-detail"><i className="ti ti-map-pin" style={{ fontSize: 11 }}></i> {s.location}</div>}
+                    </div>
+                    <div className="member-actions">
+                      <button className="member-del" onClick={() => setConfirmDel2({ type: 'schedule', id: s.id, name: s.title })}><i className="ti ti-trash"></i></button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {/* ════════ DRIVE (자료 관리 + 자동 분류) ════════ */}
+        <div className={`scr ${screen === 'drive' ? 'on' : ''}`}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+            <button style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: 0 }} onClick={() => go('home')}>
+              <i className="ti ti-arrow-left" style={{ fontSize: 22 }}></i>
+            </button>
+            <h2 style={{ margin: 0 }}>자료 관리</h2>
+          </div>
+          <div className="stripe"></div>
+
+          <div className="sync-bar">
+            <i className="ti ti-sparkles"></i>
+            <span>업로드 시 파일명을 분석해 폴더로 자동 정리됩니다</span>
+          </div>
+
+          {/* 업로드 입력 */}
+          <div className="card" style={{ marginBottom: 12 }}>
+            <div className="inp-g" style={{ marginBottom: 8 }}>
+              <label className="inp-l">파일명 입력 (자동 분류)</label>
+              <input className="inp" placeholder="예: 6월 정기회의록.pdf, 발사실험 보고서.docx" value={docName} onChange={e => { setDocName(e.target.value); setDocPreview(e.target.value.trim() ? classifyDocument(e.target.value) : ''); }} />
+            </div>
+            {docPreview && (
+              <div className="cap" style={{ marginBottom: 10 }}>
+                <i className="ti ti-arrow-right" style={{ fontSize: 12 }}></i> 분류 예측: <span style={{ color: categoryMeta(docPreview).color, fontWeight: 700 }}>{docPreview}</span> 폴더
+              </div>
+            )}
+            <button className="btn btn-fill btn-sm" style={{ width: '100%' }} onClick={saveDocument}>
+              <i className="ti ti-upload" style={{ fontSize: 16 }}></i> 자료 등록
+            </button>
+          </div>
+
+          {/* 자동 정리된 폴더 통계 */}
+          <h3>폴더 (자동 정리)</h3>
+          <div className="folder-grid">
+            <div className={`folder-chip ${docFilter === '전체' ? 'on' : ''}`} onClick={() => setDocFilter('전체')}>
+              <i className="ti ti-folders"></i><span>전체</span><strong>{docC}</strong>
+            </div>
+            {docStats.map(cat => (
+              <div className={`folder-chip ${docFilter === cat.key ? 'on' : ''}`} key={cat.key} onClick={() => setDocFilter(cat.key)}>
+                <i className={`ti ${cat.icon}`} style={{ color: cat.color }}></i><span>{cat.key}</span><strong>{cat.count}</strong>
+              </div>
+            ))}
+          </div>
+
+          <div className="card" style={{ padding: '4px 16px', marginTop: 12 }}>
+            {(() => {
+              const filtered = docFilter === '전체' ? docList : docList.filter(d => d.category === docFilter);
+              if (filtered.length === 0) {
+                return (
+                  <div className="empty-state">
+                    <i className="ti ti-folder-off"></i>
+                    <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>자료가 없습니다</div>
+                    <div className="cap">파일명을 입력해 자료를 등록해보세요</div>
+                  </div>
+                );
+              }
+              return filtered.map(d => {
+                const meta = categoryMeta(d.category);
+                return (
+                  <div className="file-i" key={d.id}>
+                    <div className="file-icon"><i className={`ti ${meta.icon}`} style={{ color: meta.color }}></i></div>
+                    <div className="file-info">
+                      <div className="file-name">{d.name}</div>
+                      <div className="file-meta">{d.category} · {d.size}{d.uploadedBy ? ` · ${d.uploadedBy}` : ''}</div>
+                    </div>
+                    <button className="member-del" onClick={() => setConfirmDel2({ type: 'document', id: d.id, name: d.name })}><i className="ti ti-trash"></i></button>
+                  </div>
+                );
+              });
+            })()}
+          </div>
+        </div>
+
+        {/* ════════ SPONSORS (후원자 관리) ════════ */}
+        <div className={`scr ${screen === 'sponsors' ? 'on' : ''}`}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+            <button style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: 0 }} onClick={() => go('home')}>
+              <i className="ti ti-arrow-left" style={{ fontSize: 22 }}></i>
+            </button>
+            <h2 style={{ margin: 0 }}>후원자 관리</h2>
+          </div>
+          <div className="stripe"></div>
+
+          <div className="grid2" style={{ marginBottom: 12 }}>
+            <div className="metric"><span className="up">누적 후원금</span><div className="val" style={{ color: 'var(--ok)' }}>₩{formatAmount(sponsorTotal)}</div></div>
+            <div className="metric"><span className="up">후원처</span><div className="val">{sponsorList.length}<span style={{ fontSize: 13, fontWeight: 300, color: 'var(--muted)' }}>곳</span></div></div>
+          </div>
+
+          <div className="search-bar">
+            <div className="search-wrap">
+              <i className="ti ti-search"></i>
+              <input className="inp" placeholder="기관명, 유형, 담당자로 검색..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+            </div>
+            <button className="btn btn-fill btn-sm" onClick={() => setSpnAdd(v => !v)}>
+              <i className={`ti ${spnAdd ? 'ti-x' : 'ti-plus'}`} style={{ fontSize: 14 }}></i>
+            </button>
+          </div>
+
+          {spnAdd && (
+            <div className="card" style={{ marginBottom: 12 }}>
+              <div className="inp-g"><label className="inp-l">기관 / 후원자명 *</label><input className="inp" placeholder="예: (주)한화에어로스페이스" value={spnName} onChange={e => setSpnName(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">유형</label><select className="inp" value={spnType} onChange={e => setSpnType(e.target.value)}>{SPONSOR_TYPES.map(t => <option key={t}>{t}</option>)}</select></div>
+              <div className="inp-g"><label className="inp-l">후원 금액</label><input className="inp" placeholder="₩ 0" value={spnAmt} onChange={e => setSpnAmt(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">담당자</label><input className="inp" placeholder="담당자명" value={spnManager} onChange={e => setSpnManager(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">연락처</label><input className="inp" placeholder="010-0000-0000 / 이메일" value={spnContact} onChange={e => setSpnContact(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">상태</label><select className="inp" value={spnStatus} onChange={e => setSpnStatus(e.target.value)}><option>완료</option><option>예정</option></select></div>
+              <button className="btn btn-fill" onClick={saveSponsor}>후원 내역 저장</button>
+            </div>
+          )}
+
+          <div className="card" style={{ padding: '4px 16px' }}>
+            {sponsorList.length === 0 ? (
+              <div className="empty-state">
+                <i className="ti ti-heart-handshake"></i>
+                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{searchQuery ? '검색 결과가 없습니다' : '등록된 후원자가 없습니다'}</div>
+                <div className="cap">후원 기업·동문·기관을 기록해 관리하세요</div>
+              </div>
+            ) : (
+              sponsorList.map(s => (
+                <div className="member-card" key={s.id}>
+                  <div className="member-avatar" style={{ background: s.status === '예정' ? 'var(--warn)' : 'var(--ok)' }}>{s.name.charAt(0)}</div>
+                  <div className="member-info">
+                    <div className="member-name">{s.name} <span className="badge badge-blue" style={{ height: 18, fontSize: 9, padding: '0 6px', verticalAlign: 1 }}>{s.type}</span></div>
+                    <div className="member-detail">₩{formatAmount(s.amount)} · {s.status}{s.manager ? ` · ${s.manager}` : ''}</div>
+                    {s.contact && <div className="member-detail">{s.contact}</div>}
+                  </div>
+                  <div className="member-actions">
+                    <button className="member-del" onClick={() => setConfirmDel2({ type: 'sponsor', id: s.id, name: s.name })}><i className="ti ti-trash"></i></button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* ════════ ALUMNI (졸업 선배) ════════ */}
+        <div className={`scr ${screen === 'alumni' ? 'on' : ''}`}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+            <button style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: 0 }} onClick={() => go('home')}>
+              <i className="ti ti-arrow-left" style={{ fontSize: 22 }}></i>
+            </button>
+            <h2 style={{ margin: 0 }}>졸업 선배</h2>
+          </div>
+          <div className="stripe"></div>
+
+          <div className="grid2" style={{ marginBottom: 12 }}>
+            <div className="metric"><span className="up">등록 선배</span><div className="val">{alumniList.length}<span style={{ fontSize: 13, fontWeight: 300, color: 'var(--muted)' }}>명</span></div></div>
+            <div className="metric"><span className="up">멘토링 가능</span><div className="val" style={{ color: 'var(--blue)' }}>{mentorC}<span style={{ fontSize: 13, fontWeight: 300, color: 'var(--muted)' }}>명</span></div></div>
+          </div>
+
+          <div className="search-bar">
+            <div className="search-wrap">
+              <i className="ti ti-search"></i>
+              <input className="inp" placeholder="이름, 회사, 기수로 검색..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+            </div>
+            <button className="btn btn-fill btn-sm" onClick={() => setAlmAdd(v => !v)}>
+              <i className={`ti ${almAdd ? 'ti-x' : 'ti-plus'}`} style={{ fontSize: 14 }}></i>
+            </button>
+          </div>
+
+          {almAdd && (
+            <div className="card" style={{ marginBottom: 12 }}>
+              <div className="inp-g"><label className="inp-l">이름 *</label><input className="inp" placeholder="홍길동" value={almName} onChange={e => setAlmName(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">기수</label><select className="inp" value={almGen} onChange={e => setAlmGen(e.target.value)}><option value="">선택</option>{GENERATIONS.map(g => <option key={g}>{g}</option>)}</select></div>
+              <div className="inp-g"><label className="inp-l">졸업 연도</label><input className="inp" placeholder="예: 2023" value={almYear} onChange={e => setAlmYear(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">회사 / 소속</label><input className="inp" placeholder="예: 한국항공우주연구원" value={almCompany} onChange={e => setAlmCompany(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">직책</label><input className="inp" placeholder="예: 선임연구원" value={almPosition} onChange={e => setAlmPosition(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">전화번호</label><input className="inp" placeholder="010-0000-0000" value={almPhone} onChange={e => setAlmPhone(formatPhone(e.target.value))} /></div>
+              <div className="inp-g">
+                <label className="inp-l">멘토링 / 후원 의향</label>
+                <div className="check-row" onClick={() => setAlmMentoring(v => !v)}>
+                  <div className={`check ${almMentoring ? 'on' : ''}`}>{almMentoring && <i className="ti ti-check"></i>}</div>
+                  <span style={{ fontSize: 13, color: 'var(--body)' }}>후배 멘토링·특강·후원에 참여 의향 있음</span>
+                </div>
+              </div>
+              <button className="btn btn-fill" onClick={saveAlumnus}>선배 정보 저장</button>
+            </div>
+          )}
+
+          <div className="card" style={{ padding: '4px 16px' }}>
+            {alumniList.length === 0 ? (
+              <div className="empty-state">
+                <i className="ti ti-school"></i>
+                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{searchQuery ? '검색 결과가 없습니다' : '등록된 졸업 선배가 없습니다'}</div>
+                <div className="cap">동문 네트워크를 기록해 멘토링·후원으로 연결하세요</div>
+              </div>
+            ) : (
+              alumniList.map(a => (
+                <div className="member-card" key={a.id}>
+                  <div className="member-avatar" style={{ background: 'var(--google)' }}>{a.name.charAt(0)}</div>
+                  <div className="member-info">
+                    <div className="member-name">{a.name} {a.mentoring && <span className="badge badge-blue" style={{ height: 18, fontSize: 9, padding: '0 6px', verticalAlign: 1 }}>멘토</span>}</div>
+                    <div className="member-detail">{a.generation}{a.graduationYear ? ` · ${a.graduationYear} 졸업` : ''}</div>
+                    <div className="member-detail">{a.company}{a.position ? ` · ${a.position}` : ''}</div>
+                  </div>
+                  <div className="member-actions">
+                    <button className="member-del" onClick={() => setConfirmDel2({ type: 'alumni', id: a.id, name: a.name })}><i className="ti ti-trash"></i></button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
         {/* ════════ INPUT ════════ */}
         <div className={`scr ${screen === 'input' ? 'on' : ''}`}>
           <h2>기록 관리</h2>
           <div className="tabs">
-            {[['form','폼 연동','ti-forms'],['mem','부원 등록',''],['exp','지출 등록','']].map(([key, label, icon]) => (
+            {[['mem','부원 등록','ti-users'],['exp','지출 등록','ti-receipt']].map(([key, label, icon]) => (
               <button key={key} className={`tab ${tab === key ? 'on' : ''}`} onClick={() => setTab(key)}>
-                {icon && <i className={`ti ${icon}`} style={{ fontSize: 14, verticalAlign: -2, marginRight: 2 }}></i>}
+                <i className={`ti ${icon}`} style={{ fontSize: 14, verticalAlign: -2, marginRight: 2 }}></i>
                 {label}
               </button>
             ))}
           </div>
-
-          {tab === 'form' && (
-            <div>
-              <div className="sync-bar"><i className="ti ti-brand-google" style={{ fontSize: 16 }}></i><span>Google Forms 연동</span></div>
-              <div className="inp-g">
-                <label className="inp-l">Google Form URL</label>
-                <input className="inp" placeholder="https://docs.google.com/forms/..." defaultValue="https://docs.google.com/forms/d/1xH3..." />
-              </div>
-              <button className="btn btn-fill btn-sm" onClick={loadForm} style={{ width: '100%', marginBottom: 16 }}>
-                <i className="ti ti-refresh" style={{ fontSize: 16 }}></i> 응답 불러오기
-              </button>
-
-              {formLoaded ? (
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                    <h3 style={{ margin: 0 }}>신규 응답 <span style={{ color: 'var(--blue)' }}>{checks.filter(Boolean).length}</span>건</h3>
-                    <span className="cap">2026.06.11 기준</span>
-                  </div>
-                  <div className="card" style={{ padding: '12px 16px' }}>
-                    {MOCK_IMPORTS.map((m, i) => (
-                      <div className="import-row" key={i}>
-                        <div className={`check ${checks[i] ? 'on' : ''}`} onClick={() => toggleCheck(i)}>
-                          {checks[i] && <i className="ti ti-check"></i>}
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontWeight: 400 }}>{m.name}</div>
-                          <div className="cap">{m.detail}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <button className="btn btn-fill" onClick={importMembers} style={{ marginTop: 12 }}>
-                    <i className="ti ti-download" style={{ fontSize: 16 }}></i> 선택 부원 일괄 등록
-                  </button>
-                  <div className="cap" style={{ textAlign: 'center', marginTop: 8 }}>자동 동기화는 1시간 간격으로 실행됩니다</div>
-                </div>
-              ) : (
-                <div className="card" style={{ textAlign: 'center', padding: '32px 20px', borderStyle: 'dashed' }}>
-                  <i className="ti ti-forms" style={{ fontSize: 32, color: 'var(--blue)', display: 'block', marginBottom: 8 }}></i>
-                  <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 }}>Google Form 연결</div>
-                  <div className="cap">신입부원 모집 폼 URL을 입력하고<br/>&quot;응답 불러오기&quot;를 눌러주세요</div>
-                </div>
-              )}
-            </div>
-          )}
 
           {tab === 'mem' && (
             <div>
@@ -729,60 +1347,14 @@ export default function Home() {
               <div className="inp-g"><label className="inp-l">메모</label><input className="inp" placeholder="간단한 설명" value={fMemo} onChange={e => setFMemo(e.target.value)} /></div>
               <div className="inp-g">
                 <label className="inp-l">영수증 파일</label>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input className="inp" placeholder="파일을 선택하세요" style={{ flex: 1 }} disabled />
-                  <button className="btn btn-drive btn-sm" onClick={() => showToast('Google Drive에서 선택...')}><i className="ti ti-brand-google-drive" style={{ fontSize: 16 }}></i></button>
-                </div>
+                <input type="file" className="inp" style={{ padding: '12px 16px' }} onChange={() => showToast('파일이 선택되었습니다.')} />
               </div>
               <button className="btn btn-fill" onClick={saveExp}>증빙 등록</button>
             </div>
           )}
         </div>
 
-        {/* ════════ GOOGLE DRIVE ════════ */}
-        <div className={`scr ${screen === 'drive' ? 'on' : ''}`}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-            <button style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: 0 }} onClick={() => go('home')}>
-              <i className="ti ti-arrow-left" style={{ fontSize: 22 }}></i>
-            </button>
-            <h2 style={{ margin: 0 }}>Google Drive</h2>
-          </div>
-          <div className="up" style={{ marginBottom: 16 }}>HELIOS 2026-1 공유 드라이브</div>
-          <div className="stripe"></div>
-          <div className="sync-bar"><i className="ti ti-brand-google-drive" style={{ fontSize: 16, color: 'var(--gdrive)' }}></i><span style={{ color: 'var(--gdrive)' }}>동기화 완료 · 23개 파일 · 1.2 GB</span></div>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-            <button className="btn btn-fill btn-sm" style={{ flex: 1 }} onClick={() => showToast('Google Drive에 업로드...')}><i className="ti ti-upload" style={{ fontSize: 14 }}></i> 업로드</button>
-            <button className="btn btn-ghost btn-sm" style={{ flex: 1 }} onClick={() => showToast('새 폴더 생성...')}><i className="ti ti-folder-plus" style={{ fontSize: 14 }}></i> 새 폴더</button>
-          </div>
-          <div className="card" style={{ padding: '12px 16px' }}>
-            <h3>폴더</h3>
-            {[
-              { name: '회의록', meta: '파일 8개', badge: null },
-              { name: '회계 증빙', meta: '파일 12개 · 자동 분류', badge: '자동' },
-              { name: '프로젝트 자료', meta: '파일 3개', badge: null },
-            ].map((f, i) => (
-              <div className="file-i" key={i}>
-                <div className="file-icon" style={{ color: 'var(--blue)' }}><i className="ti ti-folder"></i></div>
-                <div className="file-info"><div className="file-name">{f.name}</div><div className="file-meta">{f.meta}</div></div>
-                {f.badge ? <span className="badge badge-g" style={{ fontSize: 9 }}>{f.badge}</span> : <i className="ti ti-chevron-right" style={{ color: 'var(--muted)', fontSize: 16 }}></i>}
-              </div>
-            ))}
-          </div>
-          <div className="card" style={{ padding: '12px 16px' }}>
-            <h3>최근 파일</h3>
-            {[
-              { icon: 'ti-file-spreadsheet', color: 'var(--ok)', name: '2026_1학기_예산.xlsx', meta: '340 KB · 2시간 전' },
-              { icon: 'ti-file-text', color: 'var(--blue)', name: '정기회의_0528_회의록.docx', meta: '128 KB · 3일 전' },
-              { icon: 'ti-photo', color: 'var(--warn)', name: '영수증_부품구매_0525.jpg', meta: '2.1 MB · 5일 전' },
-              { icon: 'ti-file-text', color: 'var(--muted)', name: '발사테스트_체크리스트.pdf', meta: '89 KB · 1주 전' },
-            ].map((f, i) => (
-              <div className="file-i" key={i}>
-                <div className="file-icon" style={{ color: f.color }}><i className={`ti ${f.icon}`}></i></div>
-                <div className="file-info"><div className="file-name">{f.name}</div><div className="file-meta">{f.meta}</div></div>
-              </div>
-            ))}
-          </div>
-        </div>
+
 
         {/* ════════ REPORT ════════ */}
         <div className={`scr ${screen === 'report' ? 'on' : ''}`}>
@@ -817,7 +1389,7 @@ export default function Home() {
           <button className="btn btn-fill" onClick={genPkg} style={{ marginBottom: 4 }}>
             <i className="ti ti-package" style={{ fontSize: 18 }}></i> 인수인계 패키지 생성
           </button>
-          <div className="cap" style={{ textAlign: 'center', marginBottom: 12 }}>상시 기록 + Google Drive 기반 자동 생성</div>
+          <div className="cap" style={{ textAlign: 'center', marginBottom: 12 }}>상시 기록 기반 자동 생성</div>
 
           {pkgOpen && (
             <div>
@@ -827,7 +1399,6 @@ export default function Home() {
                 {[
                   { icon: 'ti-users', label: `부원 현황 (${memC}명)` },
                   { icon: 'ti-receipt', label: '회계 장부' },
-                  { icon: 'ti-brand-google-drive', label: 'Drive 자료 (23개)', iconColor: 'var(--gdrive)' },
                   { icon: 'ti-calendar', label: '활동 일정' },
                 ].map((item, i) => (
                   <div className="menu-i" key={i}>
@@ -847,7 +1418,7 @@ export default function Home() {
             <>
               <div className="pro-row">
                 <div className="avatar">{user.name.charAt(0)}</div>
-                <div><div className="pro-name">{user.name}</div><div className="pro-role">HELIOS {user.generation} · 총무</div></div>
+                <div><div className="pro-name">{user.name}</div><div className="pro-role">{activeClub ? activeClub.name : 'HELIOS'} {user.generation} · 총무</div></div>
               </div>
               <div className="stripe"></div>
 
@@ -889,12 +1460,7 @@ export default function Home() {
                   <div className="menu-i" key={label}><div className="menu-l"><i className={`ti ${icon}`}></i> {label}</div><i className="ti ti-chevron-right menu-r"></i></div>
                 ))}
               </div>
-              <div className="card" style={{ padding: '0 16px', marginTop: 8 }}>
-                <h3 style={{ paddingTop: 16 }}>연동 서비스</h3>
-                {[['ti-brand-google','Google 계정','--google'],['ti-brand-google-drive','Google Drive','--gdrive'],['ti-forms','Google Forms','--google']].map(([icon, label, cv]) => (
-                  <div className="menu-i" key={label}><div className="menu-l"><i className={`ti ${icon}`} style={{ color: `var(${cv})` }}></i> {label}</div><span className="badge badge-ok">연결됨</span></div>
-                ))}
-              </div>
+
               <div className="card" style={{ padding: '0 16px', marginTop: 8 }}>
                 {[['ti-bell','알림 설정'],['ti-lock','개인정보 관리']].map(([icon, label]) => (
                   <div className="menu-i" key={label}><div className="menu-l"><i className={`ti ${icon}`}></i> {label}</div><i className="ti ti-chevron-right menu-r"></i></div>
@@ -917,6 +1483,13 @@ export default function Home() {
       {/* ════════ BOTTOM NAV ════════ */}
       {showNav && (
         <div className="nav">
+          <div className="nav-brand">
+            <div className="nav-logo"><i className="ti ti-rocket"></i></div>
+            <div className="nav-brand-text">
+              <span className="nav-brand-name">동무</span>
+              <span className="nav-brand-sub">동아리 총무</span>
+            </div>
+          </div>
           {[['home','홈','ti-home'],['input','기록','ti-plus'],['report','리포트','ti-chart-bar'],['my','내 정보','ti-user']].map(([key, label, icon]) => (
             <div key={key} className={`nav-i ${activeNav === key ? 'on' : ''}`} onClick={() => go(key)}>
               <i className={`ti ${icon}`}></i><span>{label}</span>
@@ -934,6 +1507,20 @@ export default function Home() {
             <div className="confirm-btns">
               <button className="btn btn-ghost" onClick={() => setConfirmDelete(null)}>취소</button>
               <button className="btn btn-fill" style={{ background: 'var(--warn)', borderColor: 'var(--warn)' }} onClick={() => handleDeleteMember(confirmDelete.id)}>삭제</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ════════ CONFIRM DELETE (MODULES) ════════ */}
+      {confirmDel2 && (
+        <div className="confirm-overlay">
+          <div className="confirm-box">
+            <h3>삭제 확인</h3>
+            <div className="cap">&quot;{confirmDel2.name}&quot; 항목을 삭제하시겠습니까?<br/>이 작업은 되돌릴 수 없습니다.</div>
+            <div className="confirm-btns">
+              <button className="btn btn-ghost" onClick={() => setConfirmDel2(null)}>취소</button>
+              <button className="btn btn-fill" style={{ background: 'var(--warn)', borderColor: 'var(--warn)' }} onClick={handleConfirmDel2}>삭제</button>
             </div>
           </div>
         </div>

@@ -8,6 +8,9 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="ko">
+      <head>
+        <link rel="stylesheet" href="/fonts/tabler-icons.css" />
+      </head>
       <body>{children}</body>
     </html>
   );

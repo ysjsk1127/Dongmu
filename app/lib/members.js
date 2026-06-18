@@ -2,11 +2,13 @@
 
 const MEMBERS_KEY = 'dongmu_members';
 
-// 전체 부원 목록 가져오기
-export function getMembers() {
+// 전체 부원 목록 가져오기 (clubId가 주어지면 해당 동아리만 필터링)
+export function getMembers(clubId) {
   if (typeof window === 'undefined') return [];
   const raw = localStorage.getItem(MEMBERS_KEY);
-  return raw ? JSON.parse(raw) : [];
+  const allMembers = raw ? JSON.parse(raw) : [];
+  if (clubId === undefined) return allMembers;
+  return allMembers.filter(m => m.clubId === clubId);
 }
 
 // 부원 목록 저장
@@ -16,15 +18,16 @@ function saveMembers(members) {
 
 // 부원 추가
 export function addMember(memberData) {
-  const members = getMembers();
+  const members = getMembers(); // 전체 부원 목록
 
-  // 학번 중복 검사
-  if (memberData.studentId && members.find(m => m.studentId === memberData.studentId)) {
-    return { success: false, error: '이미 등록된 학번입니다.' };
+  // 학번 중복 검사 (해당 동아리 내에서만 중복 여부 체크)
+  if (memberData.studentId && members.find(m => m.clubId === memberData.clubId && m.studentId === memberData.studentId)) {
+    return { success: false, error: '이 동아리에 이미 등록된 학번입니다.' };
   }
 
   const newMember = {
     id: Date.now().toString(),
+    clubId: memberData.clubId || '',
     name: memberData.name,
     studentId: memberData.studentId || '',
     department: memberData.department || '',
@@ -44,7 +47,7 @@ export function addMember(memberData) {
 
 // 부원 삭제
 export function deleteMember(id) {
-  const members = getMembers();
+  const members = getMembers(); // 전체 목록
   const filtered = members.filter(m => m.id !== id);
 
   if (filtered.length === members.length) {
@@ -57,7 +60,7 @@ export function deleteMember(id) {
 
 // 부원 수정
 export function updateMember(id, updates) {
-  const members = getMembers();
+  const members = getMembers(); // 전체 목록
   const idx = members.findIndex(m => m.id === id);
 
   if (idx === -1) {
@@ -71,13 +74,13 @@ export function updateMember(id, updates) {
 }
 
 // 부원 수 조회
-export function getMemberCount() {
-  return getMembers().length;
+export function getMemberCount(clubId) {
+  return getMembers(clubId).length;
 }
 
 // 부원 검색 (이름, 학번, 학과로 필터링)
-export function searchMembers(query) {
-  const members = getMembers();
+export function searchMembers(query, clubId) {
+  const members = getMembers(clubId);
   if (!query.trim()) return members;
 
   const q = query.toLowerCase().trim();
@@ -88,3 +91,4 @@ export function searchMembers(query) {
     m.generation.includes(q)
   );
 }
+
