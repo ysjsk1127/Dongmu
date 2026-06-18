@@ -5,7 +5,7 @@ import { signup, login, logout, getCurrentUser, updateProfile, setUserClub, vali
 import { getMembers, addMember, deleteMember, updateMember, searchMembers, getMemberCount } from './lib/members';
 import { createClub, getClubs, searchClubs, getClubById } from './lib/clubs';
 import { getSchedules, addSchedule, deleteSchedule, getUpcoming, getScheduleCount, formatScheduleDate, SCHEDULE_CATEGORIES } from './lib/schedule';
-import { getDocuments, addDocument, deleteDocument, getDocStats, getDocumentCount, classifyDocument, categoryMeta, DOC_CATEGORIES } from './lib/documents';
+import { getDocuments, addDocument, deleteDocument, getDocStats, getDocumentCount, categoryMeta, DOC_CATEGORIES } from './lib/documents';
 import { getSponsors, addSponsor, deleteSponsor, searchSponsors, getTotalSupport, getSponsorCount, formatAmount, SPONSOR_TYPES } from './lib/sponsors';
 import { getAlumni, addAlumnus, deleteAlumnus, updateAlumnus, searchAlumni, getAlumniCount, getMentorCount } from './lib/alumni';
 import { addExpense, deleteExpense, getExpenses, getExpenseCount, getTotalExpense, getTotalIncome, getBalance, getExpensesByCategory, getMonthlyExpense, formatAmount as formatExpAmount, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from './lib/expenses';
@@ -89,6 +89,7 @@ export default function Home() {
   const [expandedFin, setExpandedFin] = useState(null);
   const [fReceipt, setFReceipt] = useState('');
   const [fDate, setFDate] = useState('');
+  const [fSource, setFSource] = useState('');
 
   /* ── 증빙 이미지 뷰어 ── */
   const [viewerImg, setViewerImg] = useState(null);
@@ -135,7 +136,9 @@ export default function Home() {
   const [docC, setDocC] = useState(0);
   const [docFilter, setDocFilter] = useState('전체');
   const [docName, setDocName] = useState('');
-  const [docPreview, setDocPreview] = useState('');
+  const [docCat, setDocCat] = useState('기타');
+  const [docFile, setDocFile] = useState('');
+  const [docFileName, setDocFileName] = useState('');
 
   /* ── Sponsors (후원자) ── */
   const [sponsorList, setSponsorList] = useState([]);
@@ -514,16 +517,18 @@ export default function Home() {
 
   /* ───── Document Actions ───── */
   function saveDocument() {
-    if (!docName.trim()) { showToast('파일명을 입력해주세요'); return; }
+    if (!docFile) { showToast('파일을 선택해주세요'); return; }
     const res = addDocument({
       clubId: user ? user.clubId : '',
-      name: docName,
+      name: docName || docFileName,
+      category: docCat,
+      fileData: docFile,
+      fileName: docFileName,
       uploadedBy: user ? user.name : '',
     });
     if (!res.success) { showToast(res.error); return; }
-    showToast(`"${res.category}" 폴더로 자동 분류되었습니다`);
-    setDocName('');
-    setDocPreview('');
+    showToast(`"${docCat}" 폴더에 저장되었습니다`);
+    setDocName(''); setDocCat('기타'); setDocFile(''); setDocFileName('');
     refreshData();
   }
 
@@ -586,12 +591,13 @@ export default function Home() {
       category: fCat,
       amount: fAmt,
       memo: fMemo,
+      source: fSource,
       receiptFile: fReceipt,
       occurredAt: fDate || '',
     });
     if (!res.success) { showToast(res.error); return; }
     showToast(finType === 'income' ? '수입 등록 완료' : '지출 등록 완료');
-    setFCat(''); setFAmt(''); setFMemo(''); setFReceipt(''); setFDate(''); setFinType('expense'); setFinAdd(false);
+    setFCat(''); setFAmt(''); setFMemo(''); setFSource(''); setFReceipt(''); setFDate(''); setFinType('expense'); setFinAdd(false);
     refreshData();
   }
 
@@ -1422,29 +1428,37 @@ export default function Home() {
           </div>
           <div className="stripe"></div>
 
-          <div className="sync-bar">
-            <i className="ti ti-sparkles"></i>
-            <span>업로드 시 파일명을 분석해 폴더로 자동 정리됩니다</span>
-          </div>
-
-          {/* 업로드 입력 */}
           <div className="card" style={{ marginBottom: 12 }}>
             <div className="inp-g" style={{ marginBottom: 8 }}>
-              <label className="inp-l">파일명 입력 (자동 분류)</label>
-              <input className="inp" placeholder="예: 6월 정기회의록.pdf, 발사실험 보고서.docx" value={docName} onChange={e => { setDocName(e.target.value); setDocPreview(e.target.value.trim() ? classifyDocument(e.target.value) : ''); }} />
+              <label className="inp-l">폴더 선택</label>
+              <select className="inp" value={docCat} onChange={e => setDocCat(e.target.value)}>
+                {DOC_CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.key}</option>)}
+              </select>
             </div>
-            {docPreview && (
-              <div className="cap" style={{ marginBottom: 10 }}>
-                <i className="ti ti-arrow-right" style={{ fontSize: 12 }}></i> 분류 예측: <span style={{ color: categoryMeta(docPreview).color, fontWeight: 700 }}>{docPreview}</span> 폴더
-              </div>
-            )}
+            <div className="inp-g" style={{ marginBottom: 8 }}>
+              <label className="inp-l">파일 업로드 (10MB 이하)</label>
+              <input type="file" className="inp" style={{ padding: '10px 16px' }} onChange={e => {
+                const file = e.target.files[0];
+                if (!file) return;
+                if (file.size > 10 * 1024 * 1024) { showToast('10MB 이하 파일만 업로드 가능합니다'); e.target.value = ''; return; }
+                setDocFileName(file.name);
+                if (!docName) setDocName(file.name);
+                const reader = new FileReader();
+                reader.onload = () => setDocFile(reader.result);
+                reader.readAsDataURL(file);
+              }} />
+              {docFile && <div className="cap" style={{ marginTop: 4, color: 'var(--ok)' }}><i className="ti ti-check" style={{ fontSize: 12 }}></i> {docFileName}</div>}
+            </div>
+            <div className="inp-g" style={{ marginBottom: 8 }}>
+              <label className="inp-l">자료명 (선택)</label>
+              <input className="inp" placeholder="미입력 시 파일명 사용" value={docName} onChange={e => setDocName(e.target.value)} />
+            </div>
             <button className="btn btn-fill btn-sm" style={{ width: '100%' }} onClick={saveDocument}>
               <i className="ti ti-upload" style={{ fontSize: 16 }}></i> 자료 등록
             </button>
           </div>
 
-          {/* 자동 정리된 폴더 통계 */}
-          <h3>폴더 (자동 정리)</h3>
+          <h3>폴더</h3>
           <div className="folder-grid">
             <div className={`folder-chip ${docFilter === '전체' ? 'on' : ''}`} onClick={() => setDocFilter('전체')}>
               <i className="ti ti-folders"></i><span>전체</span><strong>{docC}</strong>
@@ -1464,7 +1478,7 @@ export default function Home() {
                   <div className="empty-state">
                     <i className="ti ti-folder-off"></i>
                     <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>자료가 없습니다</div>
-                    <div className="cap">파일명을 입력해 자료를 등록해보세요</div>
+                    <div className="cap">파일을 업로드해 자료를 등록해보세요</div>
                   </div>
                 );
               }
@@ -1477,7 +1491,14 @@ export default function Home() {
                       <div className="file-name">{d.name}</div>
                       <div className="file-meta">{d.category} · {d.size}{d.uploadedBy ? ` · ${d.uploadedBy}` : ''}</div>
                     </div>
-                    <button className="member-del" onClick={() => setConfirmDel2({ type: 'document', id: d.id, name: d.name })}><i className="ti ti-trash"></i></button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      {d.fileData && (
+                        <a href={d.fileData} download={d.fileName || d.name} style={{ color: 'var(--blue)', fontSize: 18, padding: 4, display: 'flex' }} title="다운로드">
+                          <i className="ti ti-download"></i>
+                        </a>
+                      )}
+                      <button className="member-del" onClick={() => setConfirmDel2({ type: 'document', id: d.id, name: d.name })}><i className="ti ti-trash"></i></button>
+                    </div>
                   </div>
                 );
               });
@@ -1667,12 +1688,30 @@ export default function Home() {
 
           {tab === 'doc' && (
             <div>
-              <div className="sync-bar" style={{ marginBottom: 12 }}><i className="ti ti-sparkles"></i><span>파일명을 분석해 폴더로 자동 정리됩니다</span></div>
               <div className="inp-g">
-                <label className="inp-l">파일명 입력 (자동 분류)</label>
-                <input className="inp" placeholder="예: 6월 정기회의록.pdf" value={docName} onChange={e => { setDocName(e.target.value); setDocPreview(e.target.value.trim() ? classifyDocument(e.target.value) : ''); }} />
+                <label className="inp-l">폴더 선택</label>
+                <select className="inp" value={docCat} onChange={e => setDocCat(e.target.value)}>
+                  {DOC_CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.key}</option>)}
+                </select>
               </div>
-              {docPreview && <div className="cap" style={{ marginBottom: 10 }}><i className="ti ti-arrow-right" style={{ fontSize: 12 }}></i> 분류 예측: <span style={{ color: categoryMeta(docPreview).color, fontWeight: 700 }}>{docPreview}</span> 폴더</div>}
+              <div className="inp-g">
+                <label className="inp-l">파일 업로드 (10MB 이하)</label>
+                <input type="file" className="inp" style={{ padding: '10px 16px' }} onChange={e => {
+                  const file = e.target.files[0];
+                  if (!file) return;
+                  if (file.size > 10 * 1024 * 1024) { showToast('10MB 이하 파일만 업로드 가능합니다'); e.target.value = ''; return; }
+                  setDocFileName(file.name);
+                  if (!docName) setDocName(file.name);
+                  const reader = new FileReader();
+                  reader.onload = () => setDocFile(reader.result);
+                  reader.readAsDataURL(file);
+                }} />
+                {docFile && <div className="cap" style={{ marginTop: 4, color: 'var(--ok)' }}><i className="ti ti-check" style={{ fontSize: 12 }}></i> {docFileName}</div>}
+              </div>
+              <div className="inp-g">
+                <label className="inp-l">자료명 (선택)</label>
+                <input className="inp" placeholder="미입력 시 파일명 사용" value={docName} onChange={e => setDocName(e.target.value)} />
+              </div>
               <button className="btn btn-fill" onClick={saveDocument}>자료 등록</button>
             </div>
           )}
@@ -1686,6 +1725,7 @@ export default function Home() {
               </div>
               <div className="inp-g"><label className="inp-l">{finType === 'income' ? '수입 항목' : '지출 항목'}</label><select className="inp" value={fCat} onChange={e => setFCat(e.target.value)}><option value="">선택</option>{(finType === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map(c => <option key={c}>{c}</option>)}</select></div>
               <div className="inp-g"><label className="inp-l">금액</label><input className="inp" placeholder="₩ 0" value={fAmt} onChange={e => setFAmt(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">{finType === 'income' ? '수입처' : '지출처'}</label><input className="inp" placeholder={finType === 'income' ? '예: 학생회, 후원기업' : '예: 다이소, 쿠팡'} value={fSource} onChange={e => setFSource(e.target.value)} /></div>
               <div className="inp-g"><label className="inp-l">발생일</label><input type="date" className="inp" value={fDate} onChange={e => setFDate(e.target.value)} /></div>
               <div className="inp-g"><label className="inp-l">메모</label><input className="inp" placeholder="간단한 설명" value={fMemo} onChange={e => setFMemo(e.target.value)} /></div>
               <div className="inp-g">
@@ -1768,6 +1808,7 @@ export default function Home() {
               </div>
               <div className="inp-g"><label className="inp-l">{finType === 'income' ? '수입 항목' : '지출 항목'}</label><select className="inp" value={fCat} onChange={e => setFCat(e.target.value)}><option value="">선택</option>{(finType === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map(c => <option key={c}>{c}</option>)}</select></div>
               <div className="inp-g"><label className="inp-l">금액</label><input className="inp" placeholder="₩ 0" value={fAmt} onChange={e => setFAmt(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">{finType === 'income' ? '수입처' : '지출처'}</label><input className="inp" placeholder={finType === 'income' ? '예: 학생회, 후원기업' : '예: 다이소, 쿠팡'} value={fSource} onChange={e => setFSource(e.target.value)} /></div>
               <div className="inp-g"><label className="inp-l">발생일</label><input type="date" className="inp" value={fDate} onChange={e => setFDate(e.target.value)} /></div>
               <div className="inp-g"><label className="inp-l">메모</label><input className="inp" placeholder="간단한 설명" value={fMemo} onChange={e => setFMemo(e.target.value)} /></div>
               <div className="inp-g">
@@ -1802,7 +1843,7 @@ export default function Home() {
                     </div>
                     <div className="member-info">
                       <div className="member-name">{e.category} <span className={`badge ${e.type === 'income' ? 'badge-ok' : 'badge-warn'}`} style={{ height: 18, fontSize: 9, padding: '0 6px', verticalAlign: 1 }}>{e.type === 'income' ? '수입' : '지출'}</span></div>
-                      <div className="member-detail">₩{formatExpAmount(e.amount)}{e.occurredAt ? ` · ${new Date(e.occurredAt).toLocaleDateString('ko-KR')}` : ''}{e.memo ? ` · ${e.memo}` : ''}</div>
+                      <div className="member-detail">₩{formatExpAmount(e.amount)}{e.source ? ` · ${e.source}` : ''}{e.occurredAt ? ` · ${new Date(e.occurredAt).toLocaleDateString('ko-KR')}` : ''}</div>
                     </div>
                     <div style={{ color: 'var(--muted)', fontSize: 16, transition: 'transform .2s', transform: expandedFin === e.id ? 'rotate(180deg)' : 'rotate(0)' }}>
                       <i className="ti ti-chevron-down"></i>
@@ -1814,6 +1855,7 @@ export default function Home() {
                         <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>유형</span><div style={{ fontWeight: 600 }}>{e.type === 'income' ? '수입' : '지출'}</div></div>
                         <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>항목</span><div>{e.category}</div></div>
                         <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>금액</span><div>₩{formatExpAmount(e.amount)}</div></div>
+                        <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>{e.type === 'income' ? '수입처' : '지출처'}</span><div>{e.source || '-'}</div></div>
                         <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>발생일</span><div>{e.occurredAt ? new Date(e.occurredAt).toLocaleDateString('ko-KR') : '-'}</div></div>
                         <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>등록일</span><div>{new Date(e.createdAt).toLocaleDateString('ko-KR')}</div></div>
                         {e.memo && <div style={{ gridColumn: '1 / -1' }}><span style={{ color: 'var(--muted)', fontSize: 11 }}>메모</span><div>{e.memo}</div></div>}
