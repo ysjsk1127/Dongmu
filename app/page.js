@@ -1556,14 +1556,13 @@ export default function Home() {
           {/* ── 자료 찾기 ── */}
           {docMode === 'search' && (
             <>
-              <div className="card" style={{ marginBottom: 12 }}>
-                <div className="inp-g" style={{ marginBottom: 8 }}>
-                  <label className="inp-l">자료명 / 작성자</label>
-                  <div className="search-wrap">
-                    <i className="ti ti-search"></i>
-                    <input className="inp" placeholder="자료명 또는 작성자로 검색..." value={docSearchQuery} onChange={e => setDocSearchQuery(e.target.value)} />
-                  </div>
+              <div className="search-bar" style={{ marginBottom: 8 }}>
+                <div className="search-wrap">
+                  <i className="ti ti-search"></i>
+                  <input className="inp" placeholder="자료명 또는 작성자로 검색..." value={docSearchQuery} onChange={e => setDocSearchQuery(e.target.value)} />
                 </div>
+              </div>
+              <div className="card" style={{ marginBottom: 12 }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                   <div className="inp-g" style={{ marginBottom: 0 }}>
                     <label className="inp-l">폴더</label>
