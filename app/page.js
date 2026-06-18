@@ -139,6 +139,10 @@ export default function Home() {
   const [docCat, setDocCat] = useState('기타');
   const [docFile, setDocFile] = useState('');
   const [docFileName, setDocFileName] = useState('');
+  const [docMode, setDocMode] = useState('upload'); // 'upload' | 'search'
+  const [docSearchQuery, setDocSearchQuery] = useState('');
+  const [docSearchFolder, setDocSearchFolder] = useState('전체');
+  const [docSearchDate, setDocSearchDate] = useState('');
 
   /* ── Sponsors (후원자) ── */
   const [sponsorList, setSponsorList] = useState([]);
@@ -1042,9 +1046,9 @@ export default function Home() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
             <h1>{activeClub ? activeClub.name : 'HELIOS'}</h1>
 
-            <div style={{ position: 'relative', cursor: 'pointer' }}>
+            <div style={{ position: 'relative', cursor: 'pointer' }} onClick={() => go('my-notify')}>
               <i className="ti ti-bell" style={{ fontSize: 24, color: 'var(--muted)' }}></i>
-              <span style={{ position: 'absolute', top: -2, right: -2, width: 8, height: 8, background: 'var(--warn)', border: '2px solid var(--canvas)' }}></span>
+              {(notifySchedule || notifyFinance || notifyMember) && <span style={{ position: 'absolute', top: -2, right: -2, width: 8, height: 8, borderRadius: 4, background: 'var(--warn)', border: '2px solid var(--canvas)' }}></span>}
             </div>
           </div>
           <div className="stripe"></div>
@@ -1071,7 +1075,7 @@ export default function Home() {
               </div>
 
               <h3 style={{ marginTop: 8 }}>운영 관리</h3>
-              <div className="hub-grid">
+              <div className="hub-grid" style={{ marginBottom: 12 }}>
                 {[
                   { id: 'members', icon: 'ti-users', label: '부원 관리', color: 'var(--blue)' },
                   { id: 'schedule', icon: 'ti-calendar', label: '일정 관리', color: 'var(--ok)' },
@@ -1258,7 +1262,7 @@ export default function Home() {
               <div className="inp-g">
                 <label className="inp-l">날짜{schHasTime ? ' / 시간' : ''} *</label>
                 <input type={schHasTime ? 'datetime-local' : 'date'} className="inp" value={schDate} onChange={e => setSchDate(e.target.value)} onClick={e => e.target.showPicker && e.target.showPicker()} />
-                <div className="check-row" onClick={() => { setSchHasTime(v => !v); setSchDate(''); }} style={{ marginTop: 6 }}>
+                <div className="check-row" onClick={() => { setSchHasTime(v => { if (v && schDate) setSchDate(schDate.split('T')[0]); return !v; }); }} style={{ marginTop: 6 }}>
                   <div className={`check ${!schHasTime ? 'on' : ''}`}>{!schHasTime && <i className="ti ti-check"></i>}</div>
                   <span style={{ fontSize: 12, color: 'var(--muted)' }}>시간 지정 없이 날짜만 등록</span>
                 </div>
@@ -1447,7 +1451,7 @@ export default function Home() {
           )}
         </div>
 
-        {/* ════════ DRIVE (자료 관리 + 자동 분류) ════════ */}
+        {/* ════════ DRIVE (자료 관리) ════════ */}
         <div className={`scr ${screen === 'drive' ? 'on' : ''}`}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
             <button style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: 0 }} onClick={() => go('home')}>
@@ -1457,82 +1461,171 @@ export default function Home() {
           </div>
           <div className="stripe"></div>
 
-          <div className="card" style={{ marginBottom: 12 }}>
-            <div className="inp-g" style={{ marginBottom: 8 }}>
-              <label className="inp-l">폴더 선택</label>
-              <select className="inp" value={docCat} onChange={e => setDocCat(e.target.value)}>
-                {DOC_CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.key}</option>)}
-              </select>
-            </div>
-            <div className="inp-g" style={{ marginBottom: 8 }}>
-              <label className="inp-l">파일 업로드 (10MB 이하)</label>
-              <input type="file" className="inp" style={{ padding: '10px 16px' }} onChange={e => {
-                const file = e.target.files[0];
-                if (!file) return;
-                if (file.size > 10 * 1024 * 1024) { showToast('10MB 이하 파일만 업로드 가능합니다'); e.target.value = ''; return; }
-                setDocFileName(file.name);
-                if (!docName) setDocName(file.name);
-                const reader = new FileReader();
-                reader.onload = () => setDocFile(reader.result);
-                reader.readAsDataURL(file);
-              }} />
-              {docFile && <div className="cap" style={{ marginTop: 4, color: 'var(--ok)' }}><i className="ti ti-check" style={{ fontSize: 12 }}></i> {docFileName}</div>}
-            </div>
-            <div className="inp-g" style={{ marginBottom: 8 }}>
-              <label className="inp-l">자료명 (선택)</label>
-              <input className="inp" placeholder="미입력 시 파일명 사용" value={docName} onChange={e => setDocName(e.target.value)} />
-            </div>
-            <button className="btn btn-fill btn-sm" style={{ width: '100%' }} onClick={saveDocument}>
-              <i className="ti ti-upload" style={{ fontSize: 16 }}></i> 자료 등록
+          {/* 업로드 / 검색 탭 전환 */}
+          <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
+            <button className={`btn btn-sm ${docMode === 'upload' ? 'btn-fill' : 'btn-ghost'}`} onClick={() => setDocMode('upload')} style={{ padding: '6px 14px' }}>
+              <i className="ti ti-upload" style={{ fontSize: 14 }}></i> 자료 올리기
+            </button>
+            <button className={`btn btn-sm ${docMode === 'search' ? 'btn-fill' : 'btn-ghost'}`} onClick={() => setDocMode('search')} style={{ padding: '6px 14px' }}>
+              <i className="ti ti-search" style={{ fontSize: 14 }}></i> 자료 찾기
             </button>
           </div>
 
-          <h3>폴더</h3>
-          <div className="folder-grid">
-            <div className={`folder-chip ${docFilter === '전체' ? 'on' : ''}`} onClick={() => setDocFilter('전체')}>
-              <i className="ti ti-folders"></i><span>전체</span><strong>{docC}</strong>
-            </div>
-            {docStats.map(cat => (
-              <div className={`folder-chip ${docFilter === cat.key ? 'on' : ''}`} key={cat.key} onClick={() => setDocFilter(cat.key)}>
-                <i className={`ti ${cat.icon}`} style={{ color: cat.color }}></i><span>{cat.key}</span><strong>{cat.count}</strong>
+          {/* ── 자료 올리기 ── */}
+          {docMode === 'upload' && (
+            <>
+              <div className="card" style={{ marginBottom: 12 }}>
+                <div className="inp-g" style={{ marginBottom: 8 }}>
+                  <label className="inp-l">폴더 선택</label>
+                  <select className="inp" value={docCat} onChange={e => setDocCat(e.target.value)}>
+                    {DOC_CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.key}</option>)}
+                  </select>
+                </div>
+                <div className="inp-g" style={{ marginBottom: 8 }}>
+                  <label className="inp-l">파일 업로드 (10MB 이하)</label>
+                  <input type="file" className="inp" style={{ padding: '10px 16px', height: 'auto' }} onChange={e => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    if (file.size > 10 * 1024 * 1024) { showToast('10MB 이하 파일만 업로드 가능합니다'); e.target.value = ''; return; }
+                    setDocFileName(file.name);
+                    if (!docName) setDocName(file.name);
+                    const reader = new FileReader();
+                    reader.onload = () => setDocFile(reader.result);
+                    reader.readAsDataURL(file);
+                  }} />
+                  {docFile && <div className="cap" style={{ marginTop: 4, color: 'var(--ok)' }}><i className="ti ti-check" style={{ fontSize: 12 }}></i> {docFileName}</div>}
+                </div>
+                <div className="inp-g" style={{ marginBottom: 8 }}>
+                  <label className="inp-l">자료명 (선택)</label>
+                  <input className="inp" placeholder="미입력 시 파일명 사용" value={docName} onChange={e => setDocName(e.target.value)} />
+                </div>
+                <button className="btn btn-fill btn-sm" style={{ width: '100%' }} onClick={saveDocument}>
+                  <i className="ti ti-upload" style={{ fontSize: 16 }}></i> 자료 등록
+                </button>
               </div>
-            ))}
-          </div>
 
-          <div className="card" style={{ padding: '4px 16px', marginTop: 12 }}>
-            {(() => {
-              const filtered = docFilter === '전체' ? docList : docList.filter(d => d.category === docFilter);
-              if (filtered.length === 0) {
-                return (
-                  <div className="empty-state">
-                    <i className="ti ti-folder-off"></i>
-                    <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>자료가 없습니다</div>
-                    <div className="cap">파일을 업로드해 자료를 등록해보세요</div>
+              <h3>폴더</h3>
+              <div className="folder-grid">
+                <div className={`folder-chip ${docFilter === '전체' ? 'on' : ''}`} onClick={() => setDocFilter('전체')}>
+                  <i className="ti ti-folders"></i><span>전체</span><strong>{docC}</strong>
+                </div>
+                {docStats.map(cat => (
+                  <div className={`folder-chip ${docFilter === cat.key ? 'on' : ''}`} key={cat.key} onClick={() => setDocFilter(cat.key)}>
+                    <i className={`ti ${cat.icon}`} style={{ color: cat.color }}></i><span>{cat.key}</span><strong>{cat.count}</strong>
                   </div>
-                );
-              }
-              return filtered.map(d => {
-                const meta = categoryMeta(d.category);
-                return (
-                  <div className="file-i" key={d.id}>
-                    <div className="file-icon"><i className={`ti ${meta.icon}`} style={{ color: meta.color }}></i></div>
-                    <div className="file-info">
-                      <div className="file-name">{d.name}</div>
-                      <div className="file-meta">{d.category} · {d.size}{d.uploadedBy ? ` · ${d.uploadedBy}` : ''}</div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      {d.fileData && (
-                        <a href={d.fileData} download={d.fileName || d.name} style={{ color: 'var(--blue)', fontSize: 18, padding: 4, display: 'flex' }} title="다운로드">
-                          <i className="ti ti-download"></i>
-                        </a>
-                      )}
-                      <button className="member-del" onClick={() => setConfirmDel2({ type: 'document', id: d.id, name: d.name })}><i className="ti ti-trash"></i></button>
-                    </div>
+                ))}
+              </div>
+
+              <div className="card" style={{ padding: '4px 16px', marginTop: 12 }}>
+                {(() => {
+                  const filtered = docFilter === '전체' ? docList : docList.filter(d => d.category === docFilter);
+                  if (filtered.length === 0) {
+                    return (
+                      <div className="empty-state">
+                        <i className="ti ti-folder-off"></i>
+                        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>자료가 없습니다</div>
+                        <div className="cap">파일을 업로드해 자료를 등록해보세요</div>
+                      </div>
+                    );
+                  }
+                  return filtered.map(d => {
+                    const meta = categoryMeta(d.category);
+                    return (
+                      <div className="file-i" key={d.id}>
+                        <div className="file-icon"><i className={`ti ${meta.icon}`} style={{ color: meta.color }}></i></div>
+                        <div className="file-info">
+                          <div className="file-name">{d.name}</div>
+                          <div className="file-meta">{d.category} · {d.size}{d.uploadedBy ? ` · ${d.uploadedBy}` : ''} · {d.uploadedAt ? new Date(d.uploadedAt).toLocaleDateString('ko-KR') : ''}</div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          {d.fileData && (
+                            <a href={d.fileData} download={d.fileName || d.name} style={{ color: 'var(--blue)', fontSize: 18, padding: 4, display: 'flex' }} title="다운로드">
+                              <i className="ti ti-download"></i>
+                            </a>
+                          )}
+                          <button className="member-del" onClick={() => setConfirmDel2({ type: 'document', id: d.id, name: d.name })}><i className="ti ti-trash"></i></button>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+            </>
+          )}
+
+          {/* ── 자료 찾기 ── */}
+          {docMode === 'search' && (
+            <>
+              <div className="card" style={{ marginBottom: 12 }}>
+                <div className="inp-g" style={{ marginBottom: 8 }}>
+                  <label className="inp-l">자료명 / 작성자</label>
+                  <div className="search-wrap">
+                    <i className="ti ti-search"></i>
+                    <input className="inp" placeholder="자료명 또는 작성자로 검색..." value={docSearchQuery} onChange={e => setDocSearchQuery(e.target.value)} />
                   </div>
-                );
-              });
-            })()}
-          </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <div className="inp-g" style={{ marginBottom: 0 }}>
+                    <label className="inp-l">폴더</label>
+                    <select className="inp" value={docSearchFolder} onChange={e => setDocSearchFolder(e.target.value)}>
+                      <option value="전체">전체</option>
+                      {DOC_CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.key}</option>)}
+                    </select>
+                  </div>
+                  <div className="inp-g" style={{ marginBottom: 0 }}>
+                    <label className="inp-l">업로드 날짜</label>
+                    <input type="date" className="inp" value={docSearchDate} onChange={e => setDocSearchDate(e.target.value)} />
+                  </div>
+                </div>
+                {(docSearchQuery || docSearchFolder !== '전체' || docSearchDate) && (
+                  <button className="btn btn-ghost btn-sm" style={{ marginTop: 8, fontSize: 12 }} onClick={() => { setDocSearchQuery(''); setDocSearchFolder('전체'); setDocSearchDate(''); }}>
+                    <i className="ti ti-x" style={{ fontSize: 12 }}></i> 검색 초기화
+                  </button>
+                )}
+              </div>
+
+              <div className="card" style={{ padding: '4px 16px' }}>
+                {(() => {
+                  let results = [...docList];
+                  if (docSearchFolder !== '전체') results = results.filter(d => d.category === docSearchFolder);
+                  if (docSearchDate) results = results.filter(d => d.uploadedAt && d.uploadedAt.startsWith(docSearchDate));
+                  if (docSearchQuery.trim()) {
+                    const q = docSearchQuery.trim().toLowerCase();
+                    results = results.filter(d => (d.name && d.name.toLowerCase().includes(q)) || (d.uploadedBy && d.uploadedBy.toLowerCase().includes(q)) || (d.fileName && d.fileName.toLowerCase().includes(q)));
+                  }
+                  if (results.length === 0) {
+                    return (
+                      <div className="empty-state">
+                        <i className="ti ti-search-off"></i>
+                        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>검색 결과가 없습니다</div>
+                        <div className="cap">다른 조건으로 검색해보세요</div>
+                      </div>
+                    );
+                  }
+                  return results.map(d => {
+                    const meta = categoryMeta(d.category);
+                    return (
+                      <div className="file-i" key={d.id}>
+                        <div className="file-icon"><i className={`ti ${meta.icon}`} style={{ color: meta.color }}></i></div>
+                        <div className="file-info">
+                          <div className="file-name">{d.name}</div>
+                          <div className="file-meta">{d.category} · {d.size}{d.uploadedBy ? ` · ${d.uploadedBy}` : ''} · {d.uploadedAt ? new Date(d.uploadedAt).toLocaleDateString('ko-KR') : ''}</div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          {d.fileData && (
+                            <a href={d.fileData} download={d.fileName || d.name} style={{ color: 'var(--blue)', fontSize: 18, padding: 4, display: 'flex' }} title="다운로드">
+                              <i className="ti ti-download"></i>
+                            </a>
+                          )}
+                          <button className="member-del" onClick={() => setConfirmDel2({ type: 'document', id: d.id, name: d.name })}><i className="ti ti-trash"></i></button>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+            </>
+          )}
         </div>
 
         {/* ════════ SPONSORS (후원자 관리) ════════ */}
@@ -1703,7 +1796,7 @@ export default function Home() {
               <div className="inp-g">
                 <label className="inp-l">날짜{schHasTime ? ' / 시간' : ''} *</label>
                 <input type={schHasTime ? 'datetime-local' : 'date'} className="inp" value={schDate} onChange={e => setSchDate(e.target.value)} onClick={e => e.target.showPicker && e.target.showPicker()} />
-                <div className="check-row" onClick={() => { setSchHasTime(v => !v); setSchDate(''); }} style={{ marginTop: 6 }}>
+                <div className="check-row" onClick={() => { setSchHasTime(v => { if (v && schDate) setSchDate(schDate.split('T')[0]); return !v; }); }} style={{ marginTop: 6 }}>
                   <div className={`check ${!schHasTime ? 'on' : ''}`}>{!schHasTime && <i className="ti ti-check"></i>}</div>
                   <span style={{ fontSize: 12, color: 'var(--muted)' }}>시간 지정 없이 날짜만 등록</span>
                 </div>
@@ -2149,19 +2242,6 @@ export default function Home() {
             <h3 style={{ marginBottom: 8, color: 'var(--warn)' }}>계정</h3>
             <div className="cap" style={{ marginBottom: 12 }}>로그아웃하면 이 기기에서 로그아웃됩니다.</div>
             <button className="btn btn-ghost" style={{ color: 'var(--warn)', borderColor: 'var(--warn)', marginBottom: 8 }} onClick={handleLogout}>로그아웃</button>
-          </div>
-          <div className="card" style={{ padding: '16px', marginTop: 8 }}>
-            <h3 style={{ marginBottom: 8, color: 'var(--warn)' }}>데이터 초기화</h3>
-            <div className="cap" style={{ marginBottom: 12 }}>모든 앱 데이터(회원·일정·재무·자료·후원 등)를 삭제하고 처음 상태로 되돌립니다. 이 작업은 되돌릴 수 없습니다.</div>
-            <button className="btn btn-ghost" style={{ color: '#fff', background: 'var(--warn)', borderColor: 'var(--warn)' }} onClick={() => {
-              if (confirm('정말로 모든 데이터를 초기화하시겠습니까?\n이 작업은 되돌릴 수 없습니다.')) {
-                const keys = Object.keys(localStorage).filter(k => k.startsWith('dongmu_'));
-                keys.forEach(k => localStorage.removeItem(k));
-                setUser(null);
-                setScreen('login');
-                showToast('모든 데이터가 초기화되었습니다');
-              }
-            }}>전체 데이터 초기화</button>
           </div>
         </div>
       </div>
