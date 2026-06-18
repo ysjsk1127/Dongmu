@@ -30,6 +30,8 @@ function GoogleIcon() {
 const GENERATIONS = Array.from({ length: 10 }, (_, i) => `${i + 1}기`);
 
 export default function Home() {
+  const [mounted, setMounted] = useState(false);
+
   /* ── Navigation ── */
   const [screen, setScreen] = useState('onboard');
   const [tab, setTab] = useState('mem');
@@ -206,6 +208,7 @@ export default function Home() {
   }, [searchQuery, refreshData]);
 
   useEffect(() => {
+    setMounted(true);
     const d = new Date();
     setNowMonth(d.getMonth() + 1);
     setNowYear(d.getFullYear());
@@ -547,6 +550,8 @@ export default function Home() {
   const navMap = { home: 'home', input: 'input', report: 'report', my: 'my', drive: 'home', members: 'home', schedule: 'home', sponsors: 'home', alumni: 'home' };
   const activeNav = navMap[screen] || screen;
   const showNav = !['onboard', 'login', 'signup', 'club-select'].includes(screen);
+
+  if (!mounted) return <div className="shell"><div className="area" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}><div style={{ textAlign: 'center' }}><i className="ti ti-rocket" style={{ fontSize: 48, color: 'var(--blue)' }}></i><div style={{ marginTop: 12, fontSize: 14, color: 'var(--muted)' }}>로딩 중...</div></div></div></div>;
 
   return (
     <div className={`shell${showNav ? ' has-nav' : ''}`}>
