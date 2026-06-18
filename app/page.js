@@ -87,6 +87,7 @@ export default function Home() {
   const [finType, setFinType] = useState('expense');
   const [finAdd, setFinAdd] = useState(false);
   const [expandedFin, setExpandedFin] = useState(null);
+  const [fReceipt, setFReceipt] = useState('');
 
   /* ── Member registration form ── */
   const [fName, setFName] = useState('');
@@ -222,7 +223,8 @@ export default function Home() {
       try { initSync(() => refreshData()); } catch (_) {}
     }
     boot();
-  }, [refreshData]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     refreshData();
@@ -573,10 +575,11 @@ export default function Home() {
       category: fCat,
       amount: fAmt,
       memo: fMemo,
+      receiptFile: fReceipt,
     });
     if (!res.success) { showToast(res.error); return; }
     showToast(finType === 'income' ? '수입 등록 완료' : '지출 등록 완료');
-    setFCat(''); setFAmt(''); setFMemo(''); setFinType('expense'); setFinAdd(false);
+    setFCat(''); setFAmt(''); setFMemo(''); setFReceipt(''); setFinType('expense'); setFinAdd(false);
     refreshData();
   }
 
@@ -1666,12 +1669,24 @@ export default function Home() {
             <div>
               <div className="cap" style={{ marginBottom: 12 }}><i className="ti ti-info-circle" style={{ fontSize: 14, verticalAlign: -2 }}></i> 수입/지출 내역을 등록합니다.</div>
               <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
-                <button className={`btn btn-sm ${finType === 'expense' ? 'btn-fill' : 'btn-ghost'}`} onClick={() => { setFinType('expense'); setFCat(''); }} style={{ flex: 1 }}>지출</button>
                 <button className={`btn btn-sm ${finType === 'income' ? 'btn-fill' : 'btn-ghost'}`} onClick={() => { setFinType('income'); setFCat(''); }} style={{ flex: 1 }}>수입</button>
+                <button className={`btn btn-sm ${finType === 'expense' ? 'btn-fill' : 'btn-ghost'}`} onClick={() => { setFinType('expense'); setFCat(''); }} style={{ flex: 1 }}>지출</button>
               </div>
               <div className="inp-g"><label className="inp-l">{finType === 'income' ? '수입 항목' : '지출 항목'}</label><select className="inp" value={fCat} onChange={e => setFCat(e.target.value)}><option value="">선택</option>{(finType === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map(c => <option key={c}>{c}</option>)}</select></div>
               <div className="inp-g"><label className="inp-l">금액</label><input className="inp" placeholder="₩ 0" value={fAmt} onChange={e => setFAmt(e.target.value)} /></div>
               <div className="inp-g"><label className="inp-l">메모</label><input className="inp" placeholder="간단한 설명" value={fMemo} onChange={e => setFMemo(e.target.value)} /></div>
+              <div className="inp-g">
+                <label className="inp-l">증빙 자료</label>
+                <input type="file" accept="image/*,.pdf" className="inp" style={{ padding: '10px 16px' }} onChange={e => {
+                  const file = e.target.files[0];
+                  if (!file) return;
+                  if (file.size > 5 * 1024 * 1024) { showToast('5MB 이하 파일만 업로드 가능합니다'); e.target.value = ''; return; }
+                  const reader = new FileReader();
+                  reader.onload = () => setFReceipt(reader.result);
+                  reader.readAsDataURL(file);
+                }} />
+                {fReceipt && <div className="cap" style={{ marginTop: 4, color: 'var(--ok)' }}><i className="ti ti-check" style={{ fontSize: 12 }}></i> 파일 첨부됨</div>}
+              </div>
               <button className="btn btn-fill" onClick={saveExp}>{finType === 'income' ? '수입 등록' : '지출 등록'}</button>
             </div>
           )}
@@ -1735,12 +1750,24 @@ export default function Home() {
           {finAdd && (
             <div className="card" style={{ marginBottom: 12 }}>
               <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
-                <button className={`btn btn-sm ${finType === 'expense' ? 'btn-fill' : 'btn-ghost'}`} onClick={() => { setFinType('expense'); setFCat(''); }} style={{ flex: 1 }}>지출</button>
                 <button className={`btn btn-sm ${finType === 'income' ? 'btn-fill' : 'btn-ghost'}`} onClick={() => { setFinType('income'); setFCat(''); }} style={{ flex: 1 }}>수입</button>
+                <button className={`btn btn-sm ${finType === 'expense' ? 'btn-fill' : 'btn-ghost'}`} onClick={() => { setFinType('expense'); setFCat(''); }} style={{ flex: 1 }}>지출</button>
               </div>
               <div className="inp-g"><label className="inp-l">{finType === 'income' ? '수입 항목' : '지출 항목'}</label><select className="inp" value={fCat} onChange={e => setFCat(e.target.value)}><option value="">선택</option>{(finType === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map(c => <option key={c}>{c}</option>)}</select></div>
               <div className="inp-g"><label className="inp-l">금액</label><input className="inp" placeholder="₩ 0" value={fAmt} onChange={e => setFAmt(e.target.value)} /></div>
               <div className="inp-g"><label className="inp-l">메모</label><input className="inp" placeholder="간단한 설명" value={fMemo} onChange={e => setFMemo(e.target.value)} /></div>
+              <div className="inp-g">
+                <label className="inp-l">증빙 자료</label>
+                <input type="file" accept="image/*,.pdf" className="inp" style={{ padding: '10px 16px' }} onChange={e => {
+                  const file = e.target.files[0];
+                  if (!file) return;
+                  if (file.size > 5 * 1024 * 1024) { showToast('5MB 이하 파일만 업로드 가능합니다'); e.target.value = ''; return; }
+                  const reader = new FileReader();
+                  reader.onload = () => setFReceipt(reader.result);
+                  reader.readAsDataURL(file);
+                }} />
+                {fReceipt && <div className="cap" style={{ marginTop: 4, color: 'var(--ok)' }}><i className="ti ti-check" style={{ fontSize: 12 }}></i> 파일 첨부됨</div>}
+              </div>
               <button className="btn btn-fill" onClick={saveExp}>{finType === 'income' ? '수입 등록' : '지출 등록'}</button>
             </div>
           )}
@@ -1775,6 +1802,7 @@ export default function Home() {
                         <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>금액</span><div>₩{formatExpAmount(e.amount)}</div></div>
                         <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>등록일</span><div>{new Date(e.createdAt).toLocaleDateString('ko-KR')}</div></div>
                         {e.memo && <div style={{ gridColumn: '1 / -1' }}><span style={{ color: 'var(--muted)', fontSize: 11 }}>메모</span><div>{e.memo}</div></div>}
+                        {e.receiptFile && <div style={{ gridColumn: '1 / -1' }}><span style={{ color: 'var(--muted)', fontSize: 11 }}>증빙 자료</span><div style={{ marginTop: 4 }}><img src={e.receiptFile} alt="증빙" style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 8, border: '1px solid var(--hair)' }} /></div></div>}
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
                         <button onClick={(ev) => { ev.stopPropagation(); deleteExpense(e.id); refreshData(); showToast('삭제되었습니다'); setExpandedFin(null); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 14px', fontSize: 12, color: 'var(--warn)', background: 'none', border: '1px solid var(--warn)', borderRadius: 8, cursor: 'pointer' }}>
