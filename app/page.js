@@ -8,6 +8,7 @@ import { getSchedules, addSchedule, deleteSchedule, getUpcoming, getScheduleCoun
 import { getDocuments, addDocument, deleteDocument, getDocStats, getDocumentCount, classifyDocument, categoryMeta, DOC_CATEGORIES } from './lib/documents';
 import { getSponsors, addSponsor, deleteSponsor, searchSponsors, getTotalSupport, getSponsorCount, formatAmount, SPONSOR_TYPES } from './lib/sponsors';
 import { getAlumni, addAlumnus, deleteAlumnus, searchAlumni, getAlumniCount, getMentorCount } from './lib/alumni';
+import { addExpense, deleteExpense, getExpenses, getExpenseCount, getTotalExpense, getExpensesByCategory, getMonthlyExpense, formatAmount as formatExpAmount, EXPENSE_CATEGORIES } from './lib/expenses';
 import { initSync, pullFromCloud } from './lib/sync';
 
 
@@ -66,9 +67,14 @@ export default function Home() {
 
   /* ── Home/data state ── */
   const [memC, setMemC] = useState(0);
-  const [logC, setLogC] = useState(0);
-  const [rcptC, setRcptC] = useState(0);
   const [pkgOpen, setPkgOpen] = useState(false);
+
+  /* ── Expense data state ── */
+  const [expenseList, setExpenseList] = useState([]);
+  const [expC, setExpC] = useState(0);
+  const [expTotal, setExpTotal] = useState(0);
+  const [expMonthly, setExpMonthly] = useState(0);
+  const [expByCategory, setExpByCategory] = useState([]);
 
   /* ── Member registration form ── */
   const [fName, setFName] = useState('');
@@ -157,6 +163,13 @@ export default function Home() {
     // 졸업 선배
     setAlumniList(searchQuery ? searchAlumni(searchQuery, clubId) : getAlumni(clubId));
     setMentorC(getMentorCount(clubId));
+
+    // 지출
+    setExpenseList(getExpenses(clubId));
+    setExpC(getExpenseCount(clubId));
+    setExpTotal(getTotalExpense(clubId));
+    setExpMonthly(getMonthlyExpense(clubId));
+    setExpByCategory(getExpensesByCategory(clubId));
   }, [searchQuery]);
 
   useEffect(() => {
@@ -494,11 +507,16 @@ export default function Home() {
 
   /* ───── Expense ───── */
   function saveExp() {
-    if (!fCat || !fAmt) { showToast('필수 항목을 입력해주세요'); return; }
-    setRcptC(prev => prev + 1);
-    setLogC(prev => prev + 1);
+    const res = addExpense({
+      clubId: user ? user.clubId : '',
+      category: fCat,
+      amount: fAmt,
+      memo: fMemo,
+    });
+    if (!res.success) { showToast(res.error); return; }
     showToast('증빙 등록 완료');
     setFCat(''); setFAmt(''); setFMemo('');
+    refreshData();
     setTimeout(() => go('report'), 1200);
   }
 
@@ -919,17 +937,17 @@ export default function Home() {
                   <span className="up">총 부원</span>
                   <div className="val">{memC}<span style={{ fontSize: 13, fontWeight: 300, color: 'var(--muted)' }}>명</span></div>
                 </div>
-                <div className="metric">
-                  <span className="up">회비 납부율</span>
-                  <div className="val" style={{ color: 'var(--blue)' }}>{memC > 0 ? Math.round((memC / (memC + 1)) * 100) : 0}<span style={{ fontSize: 13, fontWeight: 300 }}>%</span></div>
-                </div>
-                <div className="metric" onClick={() => { go('input'); setTab('exp'); }}>
+                <div className="metric" onClick={() => go('report')}>
                   <span className="up">이번 달 지출</span>
-                  <div className="val">{rcptC > 0 ? rcptC * 50 : 0}<span style={{ fontSize: 13, fontWeight: 300, color: 'var(--muted)' }}>K</span></div>
+                  <div className="val" style={{ color: 'var(--blue)' }}>{formatExpAmount(expMonthly)}<span style={{ fontSize: 13, fontWeight: 300 }}>원</span></div>
+                </div>
+                <div className="metric" onClick={() => go('report')}>
+                  <span className="up">총 지출</span>
+                  <div className="val">{formatExpAmount(expTotal)}<span style={{ fontSize: 13, fontWeight: 300, color: 'var(--muted)' }}>원</span></div>
                 </div>
                 <div className="metric" onClick={() => { go('input'); setTab('exp'); }}>
-                  <span className="up">미처리 증빙</span>
-                  <div className="val" style={{ color: rcptC > 0 ? 'var(--warn)' : 'var(--ink)' }}>{rcptC}<span style={{ fontSize: 13, fontWeight: 300 }}>건</span></div>
+                  <span className="up">지출 건수</span>
+                  <div className="val">{expC}<span style={{ fontSize: 13, fontWeight: 300 }}>건</span></div>
                 </div>
               </div>
 
@@ -1315,8 +1333,8 @@ export default function Home() {
         {/* ════════ INPUT ════════ */}
         <div className={`scr ${screen === 'input' ? 'on' : ''}`}>
           <h2>기록 관리</h2>
-          <div className="tabs">
-            {[['mem','부원 등록','ti-users'],['exp','지출 등록','ti-receipt']].map(([key, label, icon]) => (
+          <div className="tabs" style={{ flexWrap: 'wrap' }}>
+            {[['mem','부원','ti-users'],['sch','일정','ti-calendar'],['doc','자료','ti-folder'],['exp','지출','ti-receipt'],['spn','후원','ti-heart-handshake'],['alm','선배','ti-school']].map(([key, label, icon]) => (
               <button key={key} className={`tab ${tab === key ? 'on' : ''}`} onClick={() => setTab(key)}>
                 <i className={`ti ${icon}`} style={{ fontSize: 14, verticalAlign: -2, marginRight: 2 }}></i>
                 {label}
@@ -1339,6 +1357,29 @@ export default function Home() {
             </div>
           )}
 
+          {tab === 'sch' && (
+            <div>
+              <div className="cap" style={{ marginBottom: 12 }}><i className="ti ti-info-circle" style={{ fontSize: 14, verticalAlign: -2 }}></i> 동아리 일정을 등록합니다.</div>
+              <div className="inp-g"><label className="inp-l">일정 제목 *</label><input className="inp" placeholder="예: 정기회의, MT" value={schTitle} onChange={e => setSchTitle(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">날짜 / 시간 *</label><input type="datetime-local" className="inp" value={schDate} onChange={e => setSchDate(e.target.value)} onClick={e => e.target.showPicker && e.target.showPicker()} /></div>
+              <div className="inp-g"><label className="inp-l">분류</label><select className="inp" value={schCat} onChange={e => setSchCat(e.target.value)}>{SCHEDULE_CATEGORIES.map(c => <option key={c.key}>{c.key}</option>)}</select></div>
+              <div className="inp-g"><label className="inp-l">장소</label><input className="inp" placeholder="예: 공학관 401호" value={schLoc} onChange={e => setSchLoc(e.target.value)} /></div>
+              <button className="btn btn-fill" onClick={saveSchedule}>일정 저장</button>
+            </div>
+          )}
+
+          {tab === 'doc' && (
+            <div>
+              <div className="sync-bar" style={{ marginBottom: 12 }}><i className="ti ti-sparkles"></i><span>파일명을 분석해 폴더로 자동 정리됩니다</span></div>
+              <div className="inp-g">
+                <label className="inp-l">파일명 입력 (자동 분류)</label>
+                <input className="inp" placeholder="예: 6월 정기회의록.pdf" value={docName} onChange={e => { setDocName(e.target.value); setDocPreview(e.target.value.trim() ? classifyDocument(e.target.value) : ''); }} />
+              </div>
+              {docPreview && <div className="cap" style={{ marginBottom: 10 }}><i className="ti ti-arrow-right" style={{ fontSize: 12 }}></i> 분류 예측: <span style={{ color: categoryMeta(docPreview).color, fontWeight: 700 }}>{docPreview}</span> 폴더</div>}
+              <button className="btn btn-fill" onClick={saveDocument}>자료 등록</button>
+            </div>
+          )}
+
           {tab === 'exp' && (
             <div>
               <div className="cam-zone" onClick={() => showToast('OCR 인식 시작...')}>
@@ -1346,7 +1387,7 @@ export default function Home() {
                 <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase' }}>영수증 촬영</div>
                 <div className="cap" style={{ marginTop: 4 }}>OCR 자동 인식으로 입력</div>
               </div>
-              <div className="inp-g"><label className="inp-l">지출 항목</label><select className="inp" value={fCat} onChange={e => setFCat(e.target.value)}><option value="">선택</option><option>부품 구매</option><option>행사비</option><option>인쇄비</option><option>식비</option><option>기타</option></select></div>
+              <div className="inp-g"><label className="inp-l">지출 항목</label><select className="inp" value={fCat} onChange={e => setFCat(e.target.value)}><option value="">선택</option>{EXPENSE_CATEGORIES.map(c => <option key={c}>{c}</option>)}</select></div>
               <div className="inp-g"><label className="inp-l">금액</label><input className="inp" placeholder="₩ 0" value={fAmt} onChange={e => setFAmt(e.target.value)} /></div>
               <div className="inp-g"><label className="inp-l">메모</label><input className="inp" placeholder="간단한 설명" value={fMemo} onChange={e => setFMemo(e.target.value)} /></div>
               <div className="inp-g">
@@ -1356,6 +1397,39 @@ export default function Home() {
               <button className="btn btn-fill" onClick={saveExp}>증빙 등록</button>
             </div>
           )}
+
+          {tab === 'spn' && (
+            <div>
+              <div className="cap" style={{ marginBottom: 12 }}><i className="ti ti-info-circle" style={{ fontSize: 14, verticalAlign: -2 }}></i> 후원 기업·동문·기관을 등록합니다.</div>
+              <div className="inp-g"><label className="inp-l">기관 / 후원자명 *</label><input className="inp" placeholder="예: (주)한화에어로스페이스" value={spnName} onChange={e => setSpnName(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">유형</label><select className="inp" value={spnType} onChange={e => setSpnType(e.target.value)}>{SPONSOR_TYPES.map(t => <option key={t}>{t}</option>)}</select></div>
+              <div className="inp-g"><label className="inp-l">후원 금액</label><input className="inp" placeholder="₩ 0" value={spnAmt} onChange={e => setSpnAmt(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">담당자</label><input className="inp" placeholder="담당자명" value={spnManager} onChange={e => setSpnManager(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">연락처</label><input className="inp" placeholder="010-0000-0000 / 이메일" value={spnContact} onChange={e => setSpnContact(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">상태</label><select className="inp" value={spnStatus} onChange={e => setSpnStatus(e.target.value)}><option>완료</option><option>예정</option></select></div>
+              <button className="btn btn-fill" onClick={saveSponsor}>후원 내역 저장</button>
+            </div>
+          )}
+
+          {tab === 'alm' && (
+            <div>
+              <div className="cap" style={{ marginBottom: 12 }}><i className="ti ti-info-circle" style={{ fontSize: 14, verticalAlign: -2 }}></i> 졸업 선배 정보를 등록합니다.</div>
+              <div className="inp-g"><label className="inp-l">이름 *</label><input className="inp" placeholder="홍길동" value={almName} onChange={e => setAlmName(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">기수</label><select className="inp" value={almGen} onChange={e => setAlmGen(e.target.value)}><option value="">선택</option>{GENERATIONS.map(g => <option key={g}>{g}</option>)}</select></div>
+              <div className="inp-g"><label className="inp-l">졸업 연도</label><input className="inp" placeholder="예: 2023" value={almYear} onChange={e => setAlmYear(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">회사 / 소속</label><input className="inp" placeholder="예: 한국항공우주연구원" value={almCompany} onChange={e => setAlmCompany(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">직책</label><input className="inp" placeholder="예: 선임연구원" value={almPosition} onChange={e => setAlmPosition(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">전화번호</label><input className="inp" placeholder="010-0000-0000" value={almPhone} onChange={e => setAlmPhone(formatPhone(e.target.value))} /></div>
+              <div className="inp-g">
+                <label className="inp-l">멘토링 / 후원 의향</label>
+                <div className="check-row" onClick={() => setAlmMentoring(v => !v)}>
+                  <div className={`check ${almMentoring ? 'on' : ''}`}>{almMentoring && <i className="ti ti-check"></i>}</div>
+                  <span style={{ fontSize: 13, color: 'var(--body)' }}>후배 멘토링·특강·후원에 참여 의향 있음</span>
+                </div>
+              </div>
+              <button className="btn btn-fill" onClick={saveAlumnus}>선배 정보 저장</button>
+            </div>
+          )}
         </div>
 
 
@@ -1363,33 +1437,61 @@ export default function Home() {
         {/* ════════ REPORT ════════ */}
         <div className={`scr ${screen === 'report' ? 'on' : ''}`}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-            <h2 style={{ margin: 0 }}>회계 리포트</h2>
-            <span className="badge badge-ok">6월</span>
+            <h2 style={{ margin: 0 }}>종합 리포트</h2>
+            <span className="badge badge-ok">{new Date().getMonth() + 1}월</span>
           </div>
-          <div className="up" style={{ marginBottom: 16 }}>2026년 1학기</div>
+          <div className="up" style={{ marginBottom: 16 }}>{new Date().getFullYear()}년 {new Date().getMonth() < 6 ? '1' : '2'}학기</div>
+
+          {/* 운영 현황 요약 */}
           <div className="stripe"></div>
           <div className="card">
-            <div className="rpt-row"><span className="rpt-l">수입 (회비)</span><span className="rpt-v" style={{ color: 'var(--ok)' }}>+ ₩500,000</span></div>
-            <div className="rpt-row"><span className="rpt-l">지출 합계</span><span className="rpt-v" style={{ color: 'var(--warn)' }}>- ₩320,000</span></div>
-            <div className="rpt-row" style={{ borderTop: '2px solid var(--hair)' }}><span className="rpt-l" style={{ fontWeight: 700, color: 'var(--ink)' }}>잔액</span><span className="rpt-v" style={{ fontSize: 20 }}>₩180,000</span></div>
+            <h3>운영 현황</h3>
+            {[
+              { icon: 'ti-users', label: '등록 부원', value: `${memC}명`, color: 'var(--blue)' },
+              { icon: 'ti-calendar', label: '등록 일정', value: `${schC}건`, color: 'var(--ok)' },
+              { icon: 'ti-folder', label: '자료', value: `${docC}건`, color: 'var(--warn)' },
+              { icon: 'ti-heart-handshake', label: '후원', value: `₩${formatAmount(sponsorTotal)}`, color: 'var(--danger, #e74c3c)' },
+              { icon: 'ti-school', label: '졸업 선배', value: `${alumniList.length}명 (멘토 ${mentorC}명)`, color: 'var(--blue-l)' },
+            ].map((item, i) => (
+              <div className="rpt-row" key={i}>
+                <span className="rpt-l"><i className={`ti ${item.icon}`} style={{ fontSize: 14, verticalAlign: -2, marginRight: 4, color: item.color }}></i>{item.label}</span>
+                <span className="rpt-v">{item.value}</span>
+              </div>
+            ))}
           </div>
+
+          {/* 회계 리포트 */}
+          <div className="stripe"></div>
+          <div className="card">
+            <h3>회계 리포트</h3>
+            <div className="rpt-row"><span className="rpt-l">이번 달 지출</span><span className="rpt-v" style={{ color: 'var(--warn)' }}>₩{formatExpAmount(expMonthly)}</span></div>
+            <div className="rpt-row"><span className="rpt-l">총 지출</span><span className="rpt-v" style={{ color: 'var(--warn)' }}>₩{formatExpAmount(expTotal)}</span></div>
+            <div className="rpt-row"><span className="rpt-l">지출 건수</span><span className="rpt-v">{expC}건</span></div>
+          </div>
+
+          {/* 항목별 지출 차트 */}
           <div className="card">
             <h3>항목별 지출</h3>
-            <div className="bars">
-              {[
-                { h: 72, color: 'var(--blue)', label: '부품' },
-                { h: 45, color: 'var(--blue-l)', label: '행사' },
-                { h: 28, color: 'var(--blue-e)', label: '인쇄' },
-                { h: 38, color: 'var(--blue)', label: '식비' },
-                { h: 12, color: 'var(--muted)', label: '기타' },
-              ].map((b, i) => (
-                <div className="bar-c" key={i}>
-                  <div className="bar" style={{ height: b.h, background: b.color }}></div>
-                  <div className="bar-lb">{b.label}</div>
-                </div>
-              ))}
-            </div>
+            {expTotal > 0 ? (
+              <div className="bars">
+                {expByCategory.map((c, i) => {
+                  const maxAmt = Math.max(...expByCategory.map(x => x.total), 1);
+                  const h = Math.max(Math.round((c.total / maxAmt) * 80), c.total > 0 ? 8 : 2);
+                  const colors = ['var(--blue)', 'var(--blue-l)', 'var(--blue-e)', 'var(--blue)', 'var(--muted)'];
+                  return (
+                    <div className="bar-c" key={i}>
+                      <div className="bar" style={{ height: h, background: colors[i % colors.length] }}></div>
+                      <div className="bar-lb">{c.category.replace(' 구매', '')}</div>
+                      <div className="cap" style={{ fontSize: 10, marginTop: 2 }}>₩{formatExpAmount(c.total)}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="cap" style={{ textAlign: 'center', padding: 20 }}>지출 데이터가 없습니다. 기록 탭에서 지출을 등록해주세요.</div>
+            )}
           </div>
+
           <button className="btn btn-fill" onClick={genPkg} style={{ marginBottom: 4 }}>
             <i className="ti ti-package" style={{ fontSize: 18 }}></i> 인수인계 패키지 생성
           </button>
@@ -1402,11 +1504,14 @@ export default function Home() {
                 <h3>인수인계 패키지</h3>
                 {[
                   { icon: 'ti-users', label: `부원 현황 (${memC}명)` },
-                  { icon: 'ti-receipt', label: '회계 장부' },
-                  { icon: 'ti-calendar', label: '활동 일정' },
+                  { icon: 'ti-receipt', label: `회계 장부 (${expC}건, ₩${formatExpAmount(expTotal)})` },
+                  { icon: 'ti-calendar', label: `활동 일정 (${schC}건)` },
+                  { icon: 'ti-folder', label: `자료 (${docC}건)` },
+                  { icon: 'ti-heart-handshake', label: `후원 내역 (₩${formatAmount(sponsorTotal)})` },
+                  { icon: 'ti-school', label: `졸업 선배 (${alumniList.length}명)` },
                 ].map((item, i) => (
                   <div className="menu-i" key={i}>
-                    <div className="menu-l"><i className={`ti ${item.icon}`} style={item.iconColor ? { color: item.iconColor } : {}}></i> {item.label}</div>
+                    <div className="menu-l"><i className={`ti ${item.icon}`}></i> {item.label}</div>
                     <span className="badge badge-blue">포함</span>
                   </div>
                 ))}

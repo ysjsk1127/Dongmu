@@ -9,6 +9,7 @@ const SYNC_KEYS = [
   'dongmu_documents',
   'dongmu_sponsors',
   'dongmu_alumni',
+  'dongmu_expenses',
 ];
 
 let listeners = [];
