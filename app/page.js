@@ -167,6 +167,19 @@ export default function Home() {
   const [almPhone, setAlmPhone] = useState('');
   const [almMentoring, setAlmMentoring] = useState(false);
 
+  /* ── 달력 일정 펼치기 ── */
+  const [expandedCalSch, setExpandedCalSch] = useState(null);
+
+  /* ── 알림 설정 ── */
+  const [notifySchedule, setNotifySchedule] = useState(true);
+  const [notifyFinance, setNotifyFinance] = useState(true);
+  const [notifyMember, setNotifyMember] = useState(false);
+
+  /* ── 개인정보 수정 ── */
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editDept, setEditDept] = useState('');
+
   /* ── 화면 전환 로딩 ── */
   const [screenLoading, setScreenLoading] = useState(false);
 
@@ -638,7 +651,7 @@ export default function Home() {
   }
 
   /* ───── Nav state ───── */
-  const navMap = { home: 'home', input: 'input', report: 'report', my: 'my', drive: 'home', members: 'home', schedule: 'home', sponsors: 'home', alumni: 'home' };
+  const navMap = { home: 'home', input: 'input', report: 'report', my: 'my', drive: 'home', members: 'home', schedule: 'home', sponsors: 'home', alumni: 'home', 'my-activity': 'my', 'my-receipts': 'my', 'my-notify': 'my', 'my-privacy': 'my' };
   const activeNav = navMap[screen] || screen;
   const showNav = !['onboard', 'login', 'signup', 'club-select'].includes(screen);
 
@@ -1318,16 +1331,32 @@ export default function Home() {
                     {selectedEvents.length === 0 ? (
                       <div className="cap" style={{ padding: '8px 0' }}>등록된 일정이 없습니다.</div>
                     ) : selectedEvents.map(s => (
-                      <div className="member-card" key={s.id}>
-                        <div className="member-avatar" style={{ background: s.color, fontSize: 18 }}><i className="ti ti-calendar-event"></i></div>
-                        <div className="member-info">
-                          <div className="member-name">{s.title}</div>
-                          <div className="member-detail">{formatScheduleDate(s.date)} · {s.category}</div>
-                          {s.location && <div className="member-detail"><i className="ti ti-map-pin" style={{ fontSize: 11 }}></i> {s.location}</div>}
+                      <div key={s.id}>
+                        <div className="member-card" onClick={() => setExpandedCalSch(expandedCalSch === s.id ? null : s.id)} style={{ cursor: 'pointer' }}>
+                          <div className="member-avatar" style={{ background: s.color, fontSize: 18 }}><i className="ti ti-calendar-event"></i></div>
+                          <div className="member-info">
+                            <div className="member-name">{s.title}</div>
+                            <div className="member-detail">{formatScheduleDate(s.date)} · {s.category}</div>
+                          </div>
+                          <div style={{ color: 'var(--muted)', fontSize: 16, transition: 'transform .2s', transform: expandedCalSch === s.id ? 'rotate(180deg)' : 'rotate(0)' }}>
+                            <i className="ti ti-chevron-down"></i>
+                          </div>
                         </div>
-                        <div className="member-actions">
-                          <button className="member-del" onClick={() => setConfirmDel2({ type: 'schedule', id: s.id, name: s.title })}><i className="ti ti-trash"></i></button>
-                        </div>
+                        {expandedCalSch === s.id && (
+                          <div style={{ padding: '8px 16px 12px', marginTop: -4, marginBottom: 8, background: 'var(--card)', borderRadius: '0 0 12px 12px', border: '1px solid var(--hair)', borderTop: 'none' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', fontSize: 13 }}>
+                              <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>카테고리</span><div style={{ fontWeight: 600 }}>{s.category}</div></div>
+                              <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>일시</span><div>{s.allDay ? new Date(s.date).toLocaleDateString('ko-KR') + ' (종일)' : formatScheduleDate(s.date)}</div></div>
+                              {s.location && <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>장소</span><div>{s.location}</div></div>}
+                              {s.memo && <div style={{ gridColumn: '1 / -1' }}><span style={{ color: 'var(--muted)', fontSize: 11 }}>메모</span><div>{s.memo}</div></div>}
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                              <button onClick={(ev) => { ev.stopPropagation(); setConfirmDel2({ type: 'schedule', id: s.id, name: s.title }); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 14px', fontSize: 12, color: 'var(--warn)', background: 'none', border: '1px solid var(--warn)', borderRadius: 8, cursor: 'pointer' }}>
+                                <i className="ti ti-trash"></i>삭제
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -1972,53 +2001,30 @@ export default function Home() {
               </div>
               <div className="stripe"></div>
 
-              {/* 내 프로필 정보 */}
               <div className="card" style={{ padding: '4px 16px', marginBottom: 8 }}>
                 <h3 style={{ paddingTop: 12 }}>내 프로필</h3>
-                <div className="pro-edit-row">
-                  <div className="pro-edit-label">이름</div>
-                  <div className="pro-edit-value">{user.name}</div>
-                </div>
-                <div className="pro-edit-row">
-                  <div className="pro-edit-label">학교</div>
-                  <div className="pro-edit-value">{user.school || '-'}</div>
-                </div>
-                <div className="pro-edit-row">
-                  <div className="pro-edit-label">학과</div>
-                  <div className="pro-edit-value">{user.department}</div>
-                </div>
-                <div className="pro-edit-row">
-                  <div className="pro-edit-label">학번</div>
-                  <div className="pro-edit-value">{user.studentId}</div>
-                </div>
-                <div className="pro-edit-row">
-                  <div className="pro-edit-label">전화번호</div>
-                  <div className="pro-edit-value">{user.phone}</div>
-                </div>
-                <div className="pro-edit-row">
-                  <div className="pro-edit-label">이메일</div>
-                  <div className="pro-edit-value">{user.email}</div>
-                </div>
-                <div className="pro-edit-row">
-                  <div className="pro-edit-label">가입일</div>
-                  <div className="pro-edit-value">{user.joinedAt ? new Date(user.joinedAt).toLocaleDateString('ko-KR') : user.createdAt ? new Date(user.createdAt).toLocaleDateString('ko-KR') : '-'}</div>
-                </div>
+                <div className="pro-edit-row"><div className="pro-edit-label">이름</div><div className="pro-edit-value">{user.name}</div></div>
+                <div className="pro-edit-row"><div className="pro-edit-label">역할</div><div className="pro-edit-value">{(() => { const me = membersList.find(m => m.email === user.email || m.studentId === user.studentId); return me ? me.role : '부원'; })()}</div></div>
+                <div className="pro-edit-row"><div className="pro-edit-label">학교</div><div className="pro-edit-value">{user.school || '-'}</div></div>
+                <div className="pro-edit-row"><div className="pro-edit-label">학과</div><div className="pro-edit-value">{user.department}</div></div>
+                <div className="pro-edit-row"><div className="pro-edit-label">학번</div><div className="pro-edit-value">{user.studentId}</div></div>
+                <div className="pro-edit-row"><div className="pro-edit-label">전화번호</div><div className="pro-edit-value">{user.phone}</div></div>
+                <div className="pro-edit-row"><div className="pro-edit-label">이메일</div><div className="pro-edit-value">{user.email}</div></div>
+                <div className="pro-edit-row"><div className="pro-edit-label">가입일</div><div className="pro-edit-value">{user.joinedAt ? new Date(user.joinedAt).toLocaleDateString('ko-KR') : user.createdAt ? new Date(user.createdAt).toLocaleDateString('ko-KR') : '-'}</div></div>
               </div>
 
               <div className="grid2" style={{ marginBottom: 12 }}>
                 <div className="metric"><span className="up">등록 일정</span><div className="val">{schC}<span style={{ fontSize: 13, fontWeight: 300, color: 'var(--muted)' }}>건</span></div></div>
-                <div className="metric"><span className="up">지출 건수</span><div className="val">{expC}<span style={{ fontSize: 13, fontWeight: 300, color: 'var(--muted)' }}>건</span></div></div>
+                <div className="metric"><span className="up">재무 건수</span><div className="val">{expC}<span style={{ fontSize: 13, fontWeight: 300, color: 'var(--muted)' }}>건</span></div></div>
               </div>
               <div className="card" style={{ padding: '0 16px' }}>
-                {[['ti-history','나의 활동 이력'],['ti-receipt-2','내가 올린 증빙']].map(([icon, label]) => (
-                  <div className="menu-i" key={label}><div className="menu-l"><i className={`ti ${icon}`}></i> {label}</div><i className="ti ti-chevron-right menu-r"></i></div>
-                ))}
+                <div className="menu-i" onClick={() => go('my-activity')}><div className="menu-l"><i className="ti ti-history"></i> 나의 활동 이력</div><i className="ti ti-chevron-right menu-r"></i></div>
+                <div className="menu-i" onClick={() => go('my-receipts')}><div className="menu-l"><i className="ti ti-receipt-2"></i> 내가 올린 증빙</div><i className="ti ti-chevron-right menu-r"></i></div>
               </div>
 
               <div className="card" style={{ padding: '0 16px', marginTop: 8 }}>
-                {[['ti-bell','알림 설정'],['ti-lock','개인정보 관리']].map(([icon, label]) => (
-                  <div className="menu-i" key={label}><div className="menu-l"><i className={`ti ${icon}`}></i> {label}</div><i className="ti ti-chevron-right menu-r"></i></div>
-                ))}
+                <div className="menu-i" onClick={() => go('my-notify')}><div className="menu-l"><i className="ti ti-bell"></i> 알림 설정</div><i className="ti ti-chevron-right menu-r"></i></div>
+                <div className="menu-i" onClick={() => { setEditName(user.name); setEditPhone(user.phone); setEditDept(user.department); go('my-privacy'); }}><div className="menu-l"><i className="ti ti-lock"></i> 개인정보 관리</div><i className="ti ti-chevron-right menu-r"></i></div>
                 <div className="menu-i" onClick={handleLogout}>
                   <div className="menu-l"><i className="ti ti-logout" style={{ color: 'var(--warn)' }}></i> <span style={{ color: 'var(--warn)' }}>로그아웃</span></div>
                   <i className="ti ti-chevron-right menu-r"></i>
@@ -2031,6 +2037,132 @@ export default function Home() {
               <button className="btn btn-fill" onClick={() => go('login')}>로그인</button>
             </div>
           )}
+        </div>
+
+        {/* ════════ MY - 활동 이력 ════════ */}
+        <div className={`scr ${screen === 'my-activity' ? 'on' : ''}`}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+            <button style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: 0 }} onClick={() => go('my')}><i className="ti ti-arrow-left" style={{ fontSize: 22 }}></i></button>
+            <h2 style={{ margin: 0 }}>나의 활동 이력</h2>
+          </div>
+          <div className="stripe"></div>
+          <div className="card" style={{ padding: '4px 16px' }}>
+            {(() => {
+              const activities = [
+                ...scheduleList.map(s => ({ type: 'schedule', label: `일정 등록: ${s.title}`, detail: s.category, date: s.createdAt, icon: 'ti-calendar-event', color: 'var(--blue)' })),
+                ...expenseList.map(e => ({ type: 'expense', label: `${e.type === 'income' ? '수입' : '지출'}: ${e.category}`, detail: `₩${formatExpAmount(e.amount)}${e.source ? ' · ' + e.source : ''}`, date: e.createdAt, icon: e.type === 'income' ? 'ti-plus' : 'ti-minus', color: e.type === 'income' ? 'var(--ok)' : 'var(--warn)' })),
+                ...docList.map(d => ({ type: 'document', label: `자료 업로드: ${d.name}`, detail: d.category, date: d.uploadedAt, icon: 'ti-file-upload', color: 'var(--gdrive)' })),
+                ...sponsorList.map(sp => ({ type: 'sponsor', label: `후원 등록: ${sp.name}`, detail: sp.type, date: sp.createdAt, icon: 'ti-heart-handshake', color: 'var(--google)' })),
+              ].sort((a, b) => new Date(b.date) - new Date(a.date));
+              if (activities.length === 0) return <div className="empty-state"><i className="ti ti-history-off"></i><div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>활동 이력이 없습니다</div></div>;
+              return activities.map((a, i) => (
+                <div className="member-card" key={i}>
+                  <div className="member-avatar" style={{ background: a.color, fontSize: 18 }}><i className={`ti ${a.icon}`}></i></div>
+                  <div className="member-info">
+                    <div className="member-name">{a.label}</div>
+                    <div className="member-detail">{a.detail} · {new Date(a.date).toLocaleDateString('ko-KR')}</div>
+                  </div>
+                </div>
+              ));
+            })()}
+          </div>
+        </div>
+
+        {/* ════════ MY - 내가 올린 증빙 ════════ */}
+        <div className={`scr ${screen === 'my-receipts' ? 'on' : ''}`}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+            <button style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: 0 }} onClick={() => go('my')}><i className="ti ti-arrow-left" style={{ fontSize: 22 }}></i></button>
+            <h2 style={{ margin: 0 }}>내가 올린 증빙</h2>
+          </div>
+          <div className="stripe"></div>
+          <div className="card" style={{ padding: '4px 16px' }}>
+            {(() => {
+              const receipts = expenseList.filter(e => e.receiptFile);
+              if (receipts.length === 0) return <div className="empty-state"><i className="ti ti-receipt-off"></i><div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>올린 증빙이 없습니다</div><div className="cap">재무 관리에서 증빙 자료를 첨부해보세요</div></div>;
+              return receipts.map(e => (
+                <div key={e.id} style={{ padding: '12px 0', borderBottom: '1px solid var(--hair)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600 }}>{e.category} <span className={`badge ${e.type === 'income' ? 'badge-ok' : 'badge-warn'}`} style={{ height: 18, fontSize: 9, padding: '0 6px' }}>{e.type === 'income' ? '수입' : '지출'}</span></div>
+                      <div className="cap">₩{formatExpAmount(e.amount)} · {new Date(e.createdAt).toLocaleDateString('ko-KR')}</div>
+                    </div>
+                    <a href={e.receiptFile} download="증빙자료.png" style={{ color: 'var(--blue)', fontSize: 18, padding: 4, display: 'flex' }}><i className="ti ti-download"></i></a>
+                  </div>
+                  <div style={{ cursor: 'pointer' }} onClick={() => setViewerImg(e.receiptFile)}>
+                    <img src={e.receiptFile} alt="증빙" style={{ maxWidth: '100%', maxHeight: 160, borderRadius: 8, border: '1px solid var(--hair)' }} />
+                    <div style={{ fontSize: 11, color: 'var(--blue)', marginTop: 4 }}><i className="ti ti-zoom-in" style={{ fontSize: 12, verticalAlign: -1 }}></i> 클릭하여 확대</div>
+                  </div>
+                </div>
+              ));
+            })()}
+          </div>
+        </div>
+
+        {/* ════════ MY - 알림 설정 ════════ */}
+        <div className={`scr ${screen === 'my-notify' ? 'on' : ''}`}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+            <button style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: 0 }} onClick={() => go('my')}><i className="ti ti-arrow-left" style={{ fontSize: 22 }}></i></button>
+            <h2 style={{ margin: 0 }}>알림 설정</h2>
+          </div>
+          <div className="stripe"></div>
+          <div className="card" style={{ padding: '4px 16px' }}>
+            {[
+              { key: 'schedule', label: '일정 알림', desc: '일정 등록·변경 시 알림을 받습니다', value: notifySchedule, setter: setNotifySchedule },
+              { key: 'finance', label: '재무 알림', desc: '수입·지출 등록 시 알림을 받습니다', value: notifyFinance, setter: setNotifyFinance },
+              { key: 'member', label: '부원 알림', desc: '신규 부원 가입 시 알림을 받습니다', value: notifyMember, setter: setNotifyMember },
+            ].map(n => (
+              <div key={n.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 0', borderBottom: '1px solid var(--hair)' }}>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>{n.label}</div>
+                  <div className="cap">{n.desc}</div>
+                </div>
+                <div onClick={() => { n.setter(v => !v); showToast(n.value ? '알림 해제' : '알림 설정됨'); }} style={{ width: 44, height: 24, borderRadius: 12, background: n.value ? 'var(--blue)' : 'var(--hair)', cursor: 'pointer', position: 'relative', transition: 'background .2s' }}>
+                  <div style={{ width: 20, height: 20, borderRadius: 10, background: '#fff', position: 'absolute', top: 2, left: n.value ? 22 : 2, transition: 'left .2s', boxShadow: '0 1px 4px rgba(0,0,0,.3)' }}></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ════════ MY - 개인정보 관리 ════════ */}
+        <div className={`scr ${screen === 'my-privacy' ? 'on' : ''}`}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+            <button style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: 0 }} onClick={() => go('my')}><i className="ti ti-arrow-left" style={{ fontSize: 22 }}></i></button>
+            <h2 style={{ margin: 0 }}>개인정보 관리</h2>
+          </div>
+          <div className="stripe"></div>
+          {user && (
+            <div className="card" style={{ padding: '16px', marginBottom: 12 }}>
+              <div className="inp-g"><label className="inp-l">이름</label><input className="inp" value={editName} onChange={e => setEditName(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">전화번호</label><input className="inp" value={editPhone} onChange={e => setEditPhone(formatPhone(e.target.value))} /></div>
+              <div className="inp-g"><label className="inp-l">학과</label><input className="inp" value={editDept} onChange={e => setEditDept(e.target.value)} /></div>
+              <button className="btn btn-fill" style={{ marginTop: 8 }} onClick={() => {
+                if (!editName.trim()) { showToast('이름을 입력해주세요'); return; }
+                updateProfile({ name: editName.trim(), phone: editPhone, department: editDept.trim() });
+                setUser({ ...user, name: editName.trim(), phone: editPhone, department: editDept.trim() });
+                showToast('개인정보가 수정되었습니다');
+                refreshData();
+              }}>저장</button>
+            </div>
+          )}
+          <div className="card" style={{ padding: '16px' }}>
+            <h3 style={{ marginBottom: 8, color: 'var(--warn)' }}>계정</h3>
+            <div className="cap" style={{ marginBottom: 12 }}>로그아웃하면 이 기기에서 로그아웃됩니다.</div>
+            <button className="btn btn-ghost" style={{ color: 'var(--warn)', borderColor: 'var(--warn)', marginBottom: 8 }} onClick={handleLogout}>로그아웃</button>
+          </div>
+          <div className="card" style={{ padding: '16px', marginTop: 8 }}>
+            <h3 style={{ marginBottom: 8, color: 'var(--warn)' }}>데이터 초기화</h3>
+            <div className="cap" style={{ marginBottom: 12 }}>모든 앱 데이터(회원·일정·재무·자료·후원 등)를 삭제하고 처음 상태로 되돌립니다. 이 작업은 되돌릴 수 없습니다.</div>
+            <button className="btn btn-ghost" style={{ color: '#fff', background: 'var(--warn)', borderColor: 'var(--warn)' }} onClick={() => {
+              if (confirm('정말로 모든 데이터를 초기화하시겠습니까?\n이 작업은 되돌릴 수 없습니다.')) {
+                const keys = Object.keys(localStorage).filter(k => k.startsWith('dongmu_'));
+                keys.forEach(k => localStorage.removeItem(k));
+                setUser(null);
+                setScreen('login');
+                showToast('모든 데이터가 초기화되었습니다');
+              }
+            }}>전체 데이터 초기화</button>
+          </div>
         </div>
       </div>
 
