@@ -208,11 +208,11 @@ export default function Home() {
   }, [searchQuery, refreshData]);
 
   useEffect(() => {
-    setMounted(true);
     const d = new Date();
     setNowMonth(d.getMonth() + 1);
     setNowYear(d.getFullYear());
     setNowSemester(d.getMonth() < 6 ? '1' : '2');
+    document.fonts.ready.then(() => setMounted(true)).catch(() => setMounted(true));
   }, []);
 
 

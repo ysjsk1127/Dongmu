@@ -9,6 +9,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="ko">
       <head>
+        <link rel="preload" href="/fonts/tabler-icons.woff2?v3.6.0" as="font" type="font/woff2" crossOrigin="anonymous" />
         <link rel="stylesheet" href="/fonts/tabler-icons.css" />
       </head>
       <body>{children}</body>
