@@ -174,7 +174,7 @@ export default function Home() {
 
   useEffect(() => {
     async function boot() {
-      await pullFromCloud();
+      try { await pullFromCloud(); } catch (_) {}
       const u = getCurrentUser();
       if (u) {
         setUser(u);
@@ -193,7 +193,7 @@ export default function Home() {
         }
       }
       refreshData();
-      initSync(() => refreshData());
+      try { initSync(() => refreshData()); } catch (_) {}
     }
     boot();
   }, [refreshData]);

@@ -17,9 +17,14 @@ let db = null;
 export function getFirebaseDB() {
   if (typeof window === 'undefined') return null;
   if (!firebaseConfig.databaseURL) return null;
-  if (!app) {
-    app = initializeApp(firebaseConfig);
-    db = getDatabase(app);
+  try {
+    if (!app) {
+      app = initializeApp(firebaseConfig);
+      db = getDatabase(app);
+    }
+    return db;
+  } catch (e) {
+    console.warn('Firebase init failed:', e);
+    return null;
   }
-  return db;
 }

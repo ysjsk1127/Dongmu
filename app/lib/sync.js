@@ -47,17 +47,21 @@ export function initSync(onDataChange) {
   stopSync();
 
   for (const key of SYNC_KEYS) {
-    const unsub = onValue(ref(db, 'data/' + key), (snap) => {
-      if (snap.exists()) {
-        const cloud = JSON.stringify(snap.val());
-        const local = localStorage.getItem(key);
-        if (cloud !== local) {
-          localStorage.setItem(key, cloud);
-          if (onChange) onChange();
-        }
-      }
-    });
-    listeners.push(unsub);
+    try {
+      const unsub = onValue(ref(db, 'data/' + key), (snap) => {
+        try {
+          if (snap.exists()) {
+            const cloud = JSON.stringify(snap.val());
+            const local = localStorage.getItem(key);
+            if (cloud !== local) {
+              localStorage.setItem(key, cloud);
+              if (onChange) onChange();
+            }
+          }
+        } catch (_) {}
+      }, (_err) => {});
+      listeners.push(unsub);
+    } catch (_) {}
   }
 }
 
