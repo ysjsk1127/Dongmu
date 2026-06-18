@@ -820,11 +820,12 @@ export default function Home() {
               </div>
               <div className="inp-g">
                 <label className="inp-l">최초 시작한 날짜 (설립일) *</label>
-                <input 
+                <input
                   type="date"
-                  className="inp" 
-                  value={newClubDate} 
-                  onChange={e => setNewClubDate(e.target.value)} 
+                  className="inp"
+                  value={newClubDate}
+                  onChange={e => setNewClubDate(e.target.value)}
+                  onClick={e => e.target.showPicker && e.target.showPicker()}
                 />
               </div>
               <button className="btn btn-fill" onClick={handleCreateClub} style={{ marginTop: 24 }}>
@@ -1072,7 +1073,7 @@ export default function Home() {
           {schAdd && (
             <div className="card" style={{ marginBottom: 12 }}>
               <div className="inp-g"><label className="inp-l">일정 제목 *</label><input className="inp" placeholder="예: 정기회의, 로켓 발사 테스트" value={schTitle} onChange={e => setSchTitle(e.target.value)} /></div>
-              <div className="inp-g"><label className="inp-l">날짜 / 시간 *</label><input type="datetime-local" className="inp" value={schDate} onChange={e => setSchDate(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">날짜 / 시간 *</label><input type="datetime-local" className="inp" value={schDate} onChange={e => setSchDate(e.target.value)} onClick={e => e.target.showPicker && e.target.showPicker()} /></div>
               <div className="inp-g"><label className="inp-l">분류</label><select className="inp" value={schCat} onChange={e => setSchCat(e.target.value)}>{SCHEDULE_CATEGORIES.map(c => <option key={c.key}>{c.key}</option>)}</select></div>
               <div className="inp-g"><label className="inp-l">장소</label><input className="inp" placeholder="예: 공학관 401호" value={schLoc} onChange={e => setSchLoc(e.target.value)} /></div>
               <button className="btn btn-fill" onClick={saveSchedule}>일정 저장</button>
