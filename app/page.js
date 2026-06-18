@@ -68,6 +68,9 @@ export default function Home() {
   /* ── Home/data state ── */
   const [memC, setMemC] = useState(0);
   const [pkgOpen, setPkgOpen] = useState(false);
+  const [nowMonth, setNowMonth] = useState(0);
+  const [nowYear, setNowYear] = useState(2026);
+  const [nowSemester, setNowSemester] = useState('1');
 
   /* ── Expense data state ── */
   const [expenseList, setExpenseList] = useState([]);
@@ -201,6 +204,13 @@ export default function Home() {
   useEffect(() => {
     refreshData();
   }, [searchQuery, refreshData]);
+
+  useEffect(() => {
+    const d = new Date();
+    setNowMonth(d.getMonth() + 1);
+    setNowYear(d.getFullYear());
+    setNowSemester(d.getMonth() < 6 ? '1' : '2');
+  }, []);
 
 
   /* ───── Helpers ───── */
@@ -1438,9 +1448,9 @@ export default function Home() {
         <div className={`scr ${screen === 'report' ? 'on' : ''}`}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
             <h2 style={{ margin: 0 }}>종합 리포트</h2>
-            <span className="badge badge-ok">{new Date().getMonth() + 1}월</span>
+            <span className="badge badge-ok">{nowMonth}월</span>
           </div>
-          <div className="up" style={{ marginBottom: 16 }}>{new Date().getFullYear()}년 {new Date().getMonth() < 6 ? '1' : '2'}학기</div>
+          <div className="up" style={{ marginBottom: 16 }}>{nowYear}년 {nowSemester}학기</div>
 
           {/* 운영 현황 요약 */}
           <div className="stripe"></div>
