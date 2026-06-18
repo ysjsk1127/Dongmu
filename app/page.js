@@ -34,7 +34,7 @@ export default function Home() {
 
   /* ── Navigation ── */
   const [screen, setScreen] = useState('onboard');
-  const [tab, setTab] = useState('mem');
+  const [tab, setTab] = useState('sch');
   const [toast, setToast] = useState('');
   const areaRef = useRef(null);
 
@@ -109,6 +109,10 @@ export default function Home() {
   const [schDate, setSchDate] = useState('');
   const [schCat, setSchCat] = useState('회의');
   const [schLoc, setSchLoc] = useState('');
+  const [calYear, setCalYear] = useState(2026);
+  const [calMonth, setCalMonth] = useState(0);
+  const [calSelected, setCalSelected] = useState(null);
+  const [schView, setSchView] = useState('calendar');
 
   /* ── Documents (자료) ── */
   const [docList, setDocList] = useState([]);
@@ -212,6 +216,8 @@ export default function Home() {
     setNowMonth(d.getMonth() + 1);
     setNowYear(d.getFullYear());
     setNowSemester(d.getMonth() < 6 ? '1' : '2');
+    setCalYear(d.getFullYear());
+    setCalMonth(d.getMonth());
     document.fonts.ready.then(() => setMounted(true)).catch(() => setMounted(true));
   }, []);
 
@@ -348,6 +354,7 @@ export default function Home() {
 
     setUser(userRes.user);
     setActiveClub(res.club);
+    autoRegisterMember(userRes.user, res.club.id, '회장');
     showToast(`"${res.club.name}" 동아리가 생성되었습니다.`);
 
     setNewClubName('');
@@ -375,6 +382,7 @@ export default function Home() {
 
     setUser(userRes.user);
     setActiveClub(club);
+    autoRegisterMember(userRes.user, clubId, '부원');
     showToast(`"${club.name}" 동아리에 가입되었습니다.`);
 
     setClubSearchQuery('');
@@ -397,6 +405,22 @@ export default function Home() {
     }
   }, [clubSearchQuery, screen]);
 
+
+  function autoRegisterMember(userData, clubId, role) {
+    const existing = getMembers(clubId);
+    if (existing.find(m => m.email === userData.email || (m.studentId && m.studentId === userData.studentId))) return;
+    addMember({
+      clubId,
+      name: userData.name,
+      studentId: userData.studentId || '',
+      department: userData.department || '',
+      phone: userData.phone || '',
+      email: userData.email || '',
+      generation: '',
+      role: role || '부원',
+      team: '',
+    });
+  }
 
   /* ───── Member Actions ───── */
   function saveMem() {
@@ -992,7 +1016,7 @@ export default function Home() {
                 </div>
                 {(() => {
                   const now = new Date();
-                  const upcoming = scheduleList.filter(s => new Date(s.date) >= now).slice(0, 4);
+                  const upcoming = scheduleList.filter(s => new Date(s.date) >= now).sort((a, b) => new Date(a.date) - new Date(b.date)).slice(0, 4);
                   if (upcoming.length === 0) {
                     return (
                       <div className="cap" style={{ padding: '8px 0' }}>
@@ -1000,13 +1024,19 @@ export default function Home() {
                       </div>
                     );
                   }
-                  return upcoming.map(s => (
-                    <div className="sch-i" key={s.id}>
-                      <div className="sch-dot" style={{ background: s.color }}></div>
-                      <div className="sch-t">{s.title}</div>
-                      <div className="sch-d">{formatScheduleDate(s.date)}</div>
-                    </div>
-                  ));
+                  return upcoming.map(s => {
+                    const diff = Math.ceil((new Date(s.date) - now) / (1000 * 60 * 60 * 24));
+                    return (
+                      <div className="sch-i" key={s.id}>
+                        <div className="sch-dot" style={{ background: s.color }}></div>
+                        <div className="sch-t">{s.title}</div>
+                        <div className="sch-d" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {formatScheduleDate(s.date)}
+                          {diff <= 3 && <span className="badge badge-warn" style={{ fontSize: 10, padding: '1px 5px' }}>D-{diff}</span>}
+                        </div>
+                      </div>
+                    );
+                  });
                 })()}
               </div>
 
@@ -1096,10 +1126,18 @@ export default function Home() {
           </div>
           <div className="stripe"></div>
 
+          {/* 뷰 전환 + 추가 */}
           <div className="member-count-bar">
-            <div className="member-count">전체 <strong>{schC}</strong>개의 일정</div>
+            <div style={{ display: 'flex', gap: 4 }}>
+              <button className={`btn btn-sm ${schView === 'calendar' ? 'btn-fill' : 'btn-ghost'}`} onClick={() => setSchView('calendar')} style={{ padding: '6px 10px' }}>
+                <i className="ti ti-calendar" style={{ fontSize: 14 }}></i> 달력
+              </button>
+              <button className={`btn btn-sm ${schView === 'list' ? 'btn-fill' : 'btn-ghost'}`} onClick={() => setSchView('list')} style={{ padding: '6px 10px' }}>
+                <i className="ti ti-list" style={{ fontSize: 14 }}></i> 목록
+              </button>
+            </div>
             <button className="btn btn-fill btn-sm" onClick={() => setSchAdd(v => !v)}>
-              <i className={`ti ${schAdd ? 'ti-x' : 'ti-plus'}`} style={{ fontSize: 14 }}></i> {schAdd ? '닫기' : '일정 추가'}
+              <i className={`ti ${schAdd ? 'ti-x' : 'ti-plus'}`} style={{ fontSize: 14 }}></i> {schAdd ? '닫기' : '추가'}
             </button>
           </div>
 
@@ -1113,32 +1151,142 @@ export default function Home() {
             </div>
           )}
 
-          <div className="card" style={{ padding: '4px 16px' }}>
-            {scheduleList.length === 0 ? (
-              <div className="empty-state">
-                <i className="ti ti-calendar-off"></i>
-                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>등록된 일정이 없습니다</div>
-                <div className="cap">위 &quot;일정 추가&quot;로 첫 일정을 등록해보세요</div>
-              </div>
-            ) : (
-              scheduleList.map(s => {
-                const past = new Date(s.date) < new Date();
-                return (
-                  <div className="member-card" key={s.id} style={{ opacity: past ? 0.5 : 1 }}>
-                    <div className="member-avatar" style={{ background: s.color, fontSize: 18 }}><i className="ti ti-calendar-event"></i></div>
-                    <div className="member-info">
-                      <div className="member-name">{s.title} {past && <span className="cap">· 종료</span>}</div>
-                      <div className="member-detail">{formatScheduleDate(s.date)} · {s.category}</div>
-                      {s.location && <div className="member-detail"><i className="ti ti-map-pin" style={{ fontSize: 11 }}></i> {s.location}</div>}
-                    </div>
-                    <div className="member-actions">
-                      <button className="member-del" onClick={() => setConfirmDel2({ type: 'schedule', id: s.id, name: s.title })}><i className="ti ti-trash"></i></button>
-                    </div>
+          {/* ── 달력 뷰 ── */}
+          {schView === 'calendar' && (() => {
+            const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+            const firstDay = new Date(calYear, calMonth, 1).getDay();
+            const today = new Date();
+            const isToday = (d) => today.getFullYear() === calYear && today.getMonth() === calMonth && today.getDate() === d;
+            const eventsOnDay = (d) => scheduleList.filter(s => {
+              const sd = new Date(s.date);
+              return sd.getFullYear() === calYear && sd.getMonth() === calMonth && sd.getDate() === d;
+            });
+            const days = [];
+            for (let i = 0; i < firstDay; i++) days.push(null);
+            for (let d = 1; d <= daysInMonth; d++) days.push(d);
+            const selectedEvents = calSelected ? eventsOnDay(calSelected) : [];
+
+            return (
+              <div>
+                <div className="card" style={{ padding: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    <button style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 18 }} onClick={() => { if (calMonth === 0) { setCalYear(y => y - 1); setCalMonth(11); } else setCalMonth(m => m - 1); setCalSelected(null); }}>
+                      <i className="ti ti-chevron-left"></i>
+                    </button>
+                    <div style={{ fontWeight: 700, fontSize: 16 }}>{calYear}년 {calMonth + 1}월</div>
+                    <button style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 18 }} onClick={() => { if (calMonth === 11) { setCalYear(y => y + 1); setCalMonth(0); } else setCalMonth(m => m + 1); setCalSelected(null); }}>
+                      <i className="ti ti-chevron-right"></i>
+                    </button>
                   </div>
-                );
-              })
-            )}
-          </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', textAlign: 'center', gap: 2 }}>
+                    {['일','월','화','수','목','금','토'].map(d => (
+                      <div key={d} style={{ fontSize: 11, fontWeight: 700, color: d === '일' ? 'var(--warn)' : d === '토' ? 'var(--blue)' : 'var(--muted)', padding: '4px 0' }}>{d}</div>
+                    ))}
+                    {days.map((d, i) => {
+                      if (!d) return <div key={`e${i}`}></div>;
+                      const evts = eventsOnDay(d);
+                      const dayOfWeek = new Date(calYear, calMonth, d).getDay();
+                      return (
+                        <div key={d} onClick={() => setCalSelected(calSelected === d ? null : d)}
+                          style={{
+                            padding: '6px 0', borderRadius: 8, cursor: 'pointer', position: 'relative',
+                            background: calSelected === d ? 'var(--blue)' : isToday(d) ? 'rgba(28,105,212,0.12)' : 'transparent',
+                            color: calSelected === d ? '#fff' : dayOfWeek === 0 ? 'var(--warn)' : dayOfWeek === 6 ? 'var(--blue)' : 'var(--ink)',
+                            fontWeight: isToday(d) ? 700 : 400, fontSize: 13,
+                          }}>
+                          {d}
+                          {evts.length > 0 && <div style={{ position: 'absolute', bottom: 2, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 2 }}>
+                            {evts.slice(0, 3).map((e, j) => <div key={j} style={{ width: 4, height: 4, borderRadius: 2, background: calSelected === d ? '#fff' : (e.color || 'var(--blue)') }}></div>)}
+                          </div>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 선택된 날짜의 일정 */}
+                {calSelected && (
+                  <div className="card" style={{ padding: '8px 16px', marginTop: 8 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8, color: 'var(--muted)' }}>{calMonth + 1}월 {calSelected}일 일정</div>
+                    {selectedEvents.length === 0 ? (
+                      <div className="cap" style={{ padding: '8px 0' }}>등록된 일정이 없습니다.</div>
+                    ) : selectedEvents.map(s => (
+                      <div className="member-card" key={s.id}>
+                        <div className="member-avatar" style={{ background: s.color, fontSize: 18 }}><i className="ti ti-calendar-event"></i></div>
+                        <div className="member-info">
+                          <div className="member-name">{s.title}</div>
+                          <div className="member-detail">{formatScheduleDate(s.date)} · {s.category}</div>
+                          {s.location && <div className="member-detail"><i className="ti ti-map-pin" style={{ fontSize: 11 }}></i> {s.location}</div>}
+                        </div>
+                        <div className="member-actions">
+                          <button className="member-del" onClick={() => setConfirmDel2({ type: 'schedule', id: s.id, name: s.title })}><i className="ti ti-trash"></i></button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* 다가오는 일정 리마인더 */}
+                {(() => {
+                  const now = new Date();
+                  const upcoming = scheduleList.filter(s => {
+                    const diff = new Date(s.date) - now;
+                    return diff > 0 && diff < 7 * 24 * 60 * 60 * 1000;
+                  }).sort((a, b) => new Date(a.date) - new Date(b.date));
+                  if (upcoming.length === 0) return null;
+                  return (
+                    <div className="card" style={{ padding: '8px 16px', marginTop: 8, borderLeft: '3px solid var(--warn)' }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <i className="ti ti-bell-ringing" style={{ color: 'var(--warn)', fontSize: 16 }}></i> 7일 이내 일정
+                      </div>
+                      {upcoming.map(s => {
+                        const diff = Math.ceil((new Date(s.date) - now) / (1000 * 60 * 60 * 24));
+                        return (
+                          <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--hair)' }}>
+                            <div>
+                              <div style={{ fontSize: 13, fontWeight: 600 }}>{s.title}</div>
+                              <div className="cap">{formatScheduleDate(s.date)}{s.location ? ` · ${s.location}` : ''}</div>
+                            </div>
+                            <span className="badge badge-warn" style={{ flexShrink: 0 }}>D-{diff}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
+            );
+          })()}
+
+          {/* ── 목록 뷰 ── */}
+          {schView === 'list' && (
+            <div className="card" style={{ padding: '4px 16px' }}>
+              {scheduleList.length === 0 ? (
+                <div className="empty-state">
+                  <i className="ti ti-calendar-off"></i>
+                  <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>등록된 일정이 없습니다</div>
+                  <div className="cap">위 &quot;추가&quot;로 첫 일정을 등록해보세요</div>
+                </div>
+              ) : (
+                scheduleList.map(s => {
+                  const past = new Date(s.date) < new Date();
+                  return (
+                    <div className="member-card" key={s.id} style={{ opacity: past ? 0.5 : 1 }}>
+                      <div className="member-avatar" style={{ background: s.color, fontSize: 18 }}><i className="ti ti-calendar-event"></i></div>
+                      <div className="member-info">
+                        <div className="member-name">{s.title} {past && <span className="cap">· 종료</span>}</div>
+                        <div className="member-detail">{formatScheduleDate(s.date)} · {s.category}</div>
+                        {s.location && <div className="member-detail"><i className="ti ti-map-pin" style={{ fontSize: 11 }}></i> {s.location}</div>}
+                      </div>
+                      <div className="member-actions">
+                        <button className="member-del" onClick={() => setConfirmDel2({ type: 'schedule', id: s.id, name: s.title })}><i className="ti ti-trash"></i></button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
         </div>
 
         {/* ════════ DRIVE (자료 관리 + 자동 분류) ════════ */}
@@ -1349,28 +1497,13 @@ export default function Home() {
         <div className={`scr ${screen === 'input' ? 'on' : ''}`}>
           <h2>기록 관리</h2>
           <div className="tabs" style={{ flexWrap: 'wrap' }}>
-            {[['mem','부원','ti-users'],['sch','일정','ti-calendar'],['doc','자료','ti-folder'],['exp','지출','ti-receipt'],['spn','후원','ti-heart-handshake'],['alm','선배','ti-school']].map(([key, label, icon]) => (
+            {[['sch','일정','ti-calendar'],['doc','자료','ti-folder'],['exp','지출','ti-receipt'],['spn','후원','ti-heart-handshake'],['alm','선배','ti-school']].map(([key, label, icon]) => (
               <button key={key} className={`tab ${tab === key ? 'on' : ''}`} onClick={() => setTab(key)}>
                 <i className={`ti ${icon}`} style={{ fontSize: 14, verticalAlign: -2, marginRight: 2 }}></i>
                 {label}
               </button>
             ))}
           </div>
-
-          {tab === 'mem' && (
-            <div>
-              <div className="cap" style={{ marginBottom: 12 }}><i className="ti ti-info-circle" style={{ fontSize: 14, verticalAlign: -2 }}></i> 부원을 수동으로 등록합니다. 필수 항목(*)을 입력해주세요.</div>
-              <div className="inp-g"><label className="inp-l">이름 *</label><input className="inp" placeholder="홍길동" value={fName} onChange={e => setFName(e.target.value)} /></div>
-              <div className="inp-g"><label className="inp-l">학번</label><input className="inp" placeholder="20XXXXXXXX" value={fStudentId} onChange={e => setFStudentId(formatStudentId(e.target.value))} /></div>
-              <div className="inp-g"><label className="inp-l">학과</label><input className="inp" placeholder="컴퓨터소프트웨어학부" value={fDept} onChange={e => setFDept(e.target.value)} /></div>
-              <div className="inp-g"><label className="inp-l">전화번호</label><input className="inp" placeholder="010-0000-0000" value={fPhone} onChange={e => setFPhone(formatPhone(e.target.value))} /></div>
-              <div className="inp-g"><label className="inp-l">이메일</label><input className="inp" placeholder="example@email.com" value={fEmail} onChange={e => setFEmail(e.target.value)} /></div>
-              <div className="inp-g"><label className="inp-l">기수</label><select className="inp" value={fGen} onChange={e => setFGen(e.target.value)}><option value="">선택</option>{GENERATIONS.map(g => <option key={g}>{g}</option>)}</select></div>
-              <div className="inp-g"><label className="inp-l">직책</label><select className="inp" value={fRole} onChange={e => setFRole(e.target.value)}><option value="">선택</option><option>회장</option><option>부회장</option><option>총무</option><option>팀장</option><option>부원</option></select></div>
-              <div className="inp-g"><label className="inp-l">소속 팀</label><select className="inp" value={fTeam} onChange={e => setFTeam(e.target.value)}><option value="">선택</option><option>추진체 팀</option><option>전자 팀</option><option>구조 팀</option><option>운영 팀</option></select></div>
-              <button className="btn btn-fill" onClick={saveMem}>저장하기</button>
-            </div>
-          )}
 
           {tab === 'sch' && (
             <div>
