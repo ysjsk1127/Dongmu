@@ -191,6 +191,7 @@ export default function Home() {
           const club = getClubById(u.clubId);
           if (club) {
             setActiveClub(club);
+            autoRegisterMember(u, club.id, '부원');
             setScreen('home');
           } else {
             setUserClub(u.id, null);
@@ -298,6 +299,7 @@ export default function Home() {
       const club = getClubById(result.user.clubId);
       if (club) {
         setActiveClub(club);
+        autoRegisterMember(result.user, club.id, '부원');
         go('home');
       } else {
         // Linked club was not found
@@ -1189,7 +1191,8 @@ export default function Home() {
                       return (
                         <div key={d} onClick={() => setCalSelected(calSelected === d ? null : d)}
                           style={{
-                            padding: '6px 0', borderRadius: 8, cursor: 'pointer', position: 'relative',
+                            padding: '10px 0', minHeight: 44, borderRadius: 8, cursor: 'pointer', position: 'relative',
+                            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                             background: calSelected === d ? 'var(--blue)' : isToday(d) ? 'rgba(28,105,212,0.12)' : 'transparent',
                             color: calSelected === d ? '#fff' : dayOfWeek === 0 ? 'var(--warn)' : dayOfWeek === 6 ? 'var(--blue)' : 'var(--ink)',
                             fontWeight: isToday(d) ? 700 : 400, fontSize: 13,
