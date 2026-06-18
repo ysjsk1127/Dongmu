@@ -1580,8 +1580,8 @@ export default function Home() {
               </div>
 
               <div className="grid2" style={{ marginBottom: 12 }}>
-                <div className="metric"><span className="up">활동 로그</span><div className="val">{logC}<span style={{ fontSize: 13, fontWeight: 300, color: 'var(--muted)' }}>건</span></div></div>
-                <div className="metric"><span className="up">내 증빙</span><div className="val">{rcptC}<span style={{ fontSize: 13, fontWeight: 300, color: 'var(--muted)' }}>건</span></div></div>
+                <div className="metric"><span className="up">등록 일정</span><div className="val">{schC}<span style={{ fontSize: 13, fontWeight: 300, color: 'var(--muted)' }}>건</span></div></div>
+                <div className="metric"><span className="up">지출 건수</span><div className="val">{expC}<span style={{ fontSize: 13, fontWeight: 300, color: 'var(--muted)' }}>건</span></div></div>
               </div>
               <div className="card" style={{ padding: '0 16px' }}>
                 {[['ti-history','나의 활동 이력'],['ti-receipt-2','내가 올린 증빙']].map(([icon, label]) => (
