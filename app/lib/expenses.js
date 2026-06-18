@@ -30,6 +30,7 @@ export function addExpense(data) {
     amount: Number(String(data.amount).replace(/[^\d]/g, '')) || 0,
     memo: data.memo || '',
     receiptFile: data.receiptFile || '',
+    occurredAt: data.occurredAt || '',
     createdAt: new Date().toISOString(),
   };
   list.push(newExp);

@@ -166,6 +166,9 @@ select.inp { appearance: none; background-image: url("data:image/svg+xml,%3Csvg 
 .pulse { animation: pulse 2s ease-in-out infinite; }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .5; } }
 
+.spin-dot { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--hair); border-top-color: var(--blue); border-radius: 50%; animation: spin .6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
 /* ====== AUTH FORMS ====== */
 .auth-form { padding: 8px 0; }
 .auth-form .inp-g { margin-bottom: 18px; }

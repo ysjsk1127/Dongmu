@@ -88,6 +88,10 @@ export default function Home() {
   const [finAdd, setFinAdd] = useState(false);
   const [expandedFin, setExpandedFin] = useState(null);
   const [fReceipt, setFReceipt] = useState('');
+  const [fDate, setFDate] = useState('');
+
+  /* ── 증빙 이미지 뷰어 ── */
+  const [viewerImg, setViewerImg] = useState(null);
 
   /* ── Member registration form ── */
   const [fName, setFName] = useState('');
@@ -159,6 +163,9 @@ export default function Home() {
   const [almPosition, setAlmPosition] = useState('');
   const [almPhone, setAlmPhone] = useState('');
   const [almMentoring, setAlmMentoring] = useState(false);
+
+  /* ── 화면 전환 로딩 ── */
+  const [screenLoading, setScreenLoading] = useState(false);
 
   /* ── Generic delete dialog for new modules ── */
   const [confirmDel2, setConfirmDel2] = useState(null); // { type, id, name }
@@ -245,10 +252,14 @@ export default function Home() {
   const isManager = user && membersList.find(m => (m.email === user.email || m.studentId === user.studentId) && m.role === '회장');
 
   function go(id) {
+    setScreenLoading(true);
     setScreen(id);
     setAuthError('');
     setSearchQuery('');
     if (areaRef.current) areaRef.current.scrollTop = 0;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => setScreenLoading(false));
+    });
   }
 
   function showToast(msg) {
@@ -576,10 +587,11 @@ export default function Home() {
       amount: fAmt,
       memo: fMemo,
       receiptFile: fReceipt,
+      occurredAt: fDate || '',
     });
     if (!res.success) { showToast(res.error); return; }
     showToast(finType === 'income' ? '수입 등록 완료' : '지출 등록 완료');
-    setFCat(''); setFAmt(''); setFMemo(''); setFReceipt(''); setFinType('expense'); setFinAdd(false);
+    setFCat(''); setFAmt(''); setFMemo(''); setFReceipt(''); setFDate(''); setFinType('expense'); setFinAdd(false);
     refreshData();
   }
 
@@ -1674,6 +1686,7 @@ export default function Home() {
               </div>
               <div className="inp-g"><label className="inp-l">{finType === 'income' ? '수입 항목' : '지출 항목'}</label><select className="inp" value={fCat} onChange={e => setFCat(e.target.value)}><option value="">선택</option>{(finType === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map(c => <option key={c}>{c}</option>)}</select></div>
               <div className="inp-g"><label className="inp-l">금액</label><input className="inp" placeholder="₩ 0" value={fAmt} onChange={e => setFAmt(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">발생일</label><input type="date" className="inp" value={fDate} onChange={e => setFDate(e.target.value)} /></div>
               <div className="inp-g"><label className="inp-l">메모</label><input className="inp" placeholder="간단한 설명" value={fMemo} onChange={e => setFMemo(e.target.value)} /></div>
               <div className="inp-g">
                 <label className="inp-l">증빙 자료</label>
@@ -1755,6 +1768,7 @@ export default function Home() {
               </div>
               <div className="inp-g"><label className="inp-l">{finType === 'income' ? '수입 항목' : '지출 항목'}</label><select className="inp" value={fCat} onChange={e => setFCat(e.target.value)}><option value="">선택</option>{(finType === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map(c => <option key={c}>{c}</option>)}</select></div>
               <div className="inp-g"><label className="inp-l">금액</label><input className="inp" placeholder="₩ 0" value={fAmt} onChange={e => setFAmt(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">발생일</label><input type="date" className="inp" value={fDate} onChange={e => setFDate(e.target.value)} /></div>
               <div className="inp-g"><label className="inp-l">메모</label><input className="inp" placeholder="간단한 설명" value={fMemo} onChange={e => setFMemo(e.target.value)} /></div>
               <div className="inp-g">
                 <label className="inp-l">증빙 자료</label>
@@ -1788,7 +1802,7 @@ export default function Home() {
                     </div>
                     <div className="member-info">
                       <div className="member-name">{e.category} <span className={`badge ${e.type === 'income' ? 'badge-ok' : 'badge-warn'}`} style={{ height: 18, fontSize: 9, padding: '0 6px', verticalAlign: 1 }}>{e.type === 'income' ? '수입' : '지출'}</span></div>
-                      <div className="member-detail">₩{formatExpAmount(e.amount)}{e.memo ? ` · ${e.memo}` : ''}</div>
+                      <div className="member-detail">₩{formatExpAmount(e.amount)}{e.occurredAt ? ` · ${new Date(e.occurredAt).toLocaleDateString('ko-KR')}` : ''}{e.memo ? ` · ${e.memo}` : ''}</div>
                     </div>
                     <div style={{ color: 'var(--muted)', fontSize: 16, transition: 'transform .2s', transform: expandedFin === e.id ? 'rotate(180deg)' : 'rotate(0)' }}>
                       <i className="ti ti-chevron-down"></i>
@@ -1800,9 +1814,10 @@ export default function Home() {
                         <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>유형</span><div style={{ fontWeight: 600 }}>{e.type === 'income' ? '수입' : '지출'}</div></div>
                         <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>항목</span><div>{e.category}</div></div>
                         <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>금액</span><div>₩{formatExpAmount(e.amount)}</div></div>
+                        <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>발생일</span><div>{e.occurredAt ? new Date(e.occurredAt).toLocaleDateString('ko-KR') : '-'}</div></div>
                         <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>등록일</span><div>{new Date(e.createdAt).toLocaleDateString('ko-KR')}</div></div>
                         {e.memo && <div style={{ gridColumn: '1 / -1' }}><span style={{ color: 'var(--muted)', fontSize: 11 }}>메모</span><div>{e.memo}</div></div>}
-                        {e.receiptFile && <div style={{ gridColumn: '1 / -1' }}><span style={{ color: 'var(--muted)', fontSize: 11 }}>증빙 자료</span><div style={{ marginTop: 4 }}><img src={e.receiptFile} alt="증빙" style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 8, border: '1px solid var(--hair)' }} /></div></div>}
+                        {e.receiptFile && <div style={{ gridColumn: '1 / -1' }}><span style={{ color: 'var(--muted)', fontSize: 11 }}>증빙 자료</span><div style={{ marginTop: 4, cursor: 'pointer' }} onClick={(ev) => { ev.stopPropagation(); setViewerImg(e.receiptFile); }}><img src={e.receiptFile} alt="증빙" style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 8, border: '1px solid var(--hair)' }} /><div style={{ fontSize: 11, color: 'var(--blue)', marginTop: 4 }}><i className="ti ti-zoom-in" style={{ fontSize: 12, verticalAlign: -1 }}></i> 클릭하여 확대 / 다운로드</div></div></div>}
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
                         <button onClick={(ev) => { ev.stopPropagation(); deleteExpense(e.id); refreshData(); showToast('삭제되었습니다'); setExpandedFin(null); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 14px', fontSize: 12, color: 'var(--warn)', background: 'none', border: '1px solid var(--warn)', borderRadius: 8, cursor: 'pointer' }}>
@@ -2020,6 +2035,30 @@ export default function Home() {
               <button className="btn btn-fill" style={{ background: 'var(--warn)', borderColor: 'var(--warn)' }} onClick={handleConfirmDel2}>삭제</button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ════════ SCREEN LOADING ════════ */}
+      {screenLoading && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 8888, background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ fontSize: 14, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span className="spin-dot"></span> 로딩중...
+          </div>
+        </div>
+      )}
+
+      {/* ════════ IMAGE VIEWER ════════ */}
+      {viewerImg && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,.85)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }} onClick={() => setViewerImg(null)}>
+          <div style={{ position: 'absolute', top: 16, right: 16, display: 'flex', gap: 8 }}>
+            <a href={viewerImg} download="증빙자료.png" onClick={e => e.stopPropagation()} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '8px 16px', fontSize: 13, fontWeight: 600, color: '#fff', background: 'var(--blue)', borderRadius: 8, textDecoration: 'none', cursor: 'pointer' }}>
+              <i className="ti ti-download" style={{ fontSize: 16 }}></i> 다운로드
+            </a>
+            <button onClick={() => setViewerImg(null)} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, fontSize: 20, color: '#fff', background: 'rgba(255,255,255,.15)', border: 'none', borderRadius: 8, cursor: 'pointer' }}>
+              <i className="ti ti-x"></i>
+            </button>
+          </div>
+          <img src={viewerImg} alt="증빙 자료" onClick={e => e.stopPropagation()} style={{ maxWidth: '90vw', maxHeight: '80vh', borderRadius: 12, objectFit: 'contain' }} />
         </div>
       )}
 
