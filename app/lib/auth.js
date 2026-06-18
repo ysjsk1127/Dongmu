@@ -1,4 +1,5 @@
 // app/lib/auth.js — localStorage 기반 인증 유틸리티
+import { pushToCloud } from './sync';
 
 const USERS_KEY = 'dongmu_users';
 const SESSION_KEY = 'dongmu_session';
@@ -22,6 +23,7 @@ function getUsers() {
 // 유저 목록 저장
 function saveUsers(users) {
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  pushToCloud(USERS_KEY);
 }
 
 // 회원가입

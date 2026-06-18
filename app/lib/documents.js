@@ -1,4 +1,5 @@
 // app/lib/documents.js — localStorage 기반 자료 관리 + 자동 분류 시스템
+import { pushToCloud } from './sync';
 
 const DOCS_KEY = 'dongmu_documents';
 
@@ -38,6 +39,7 @@ export function getDocuments(clubId) {
 
 function saveDocuments(docs) {
   localStorage.setItem(DOCS_KEY, JSON.stringify(docs));
+  pushToCloud(DOCS_KEY);
 }
 
 // 자료 추가 (자동 분류 적용)

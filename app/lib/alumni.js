@@ -1,4 +1,5 @@
 // app/lib/alumni.js — localStorage 기반 졸업 선배(Alumni) 관리
+import { pushToCloud } from './sync';
 
 const ALUMNI_KEY = 'dongmu_alumni';
 
@@ -18,6 +19,7 @@ export function getAlumni(clubId) {
 
 function saveAlumni(list) {
   localStorage.setItem(ALUMNI_KEY, JSON.stringify(list));
+  pushToCloud(ALUMNI_KEY);
 }
 
 // 졸업 선배 추가

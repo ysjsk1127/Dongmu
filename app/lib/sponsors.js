@@ -1,4 +1,5 @@
 // app/lib/sponsors.js — localStorage 기반 후원자 관리
+import { pushToCloud } from './sync';
 
 const SPONSORS_KEY = 'dongmu_sponsors';
 
@@ -15,6 +16,7 @@ export function getSponsors(clubId) {
 
 function saveSponsors(sponsors) {
   localStorage.setItem(SPONSORS_KEY, JSON.stringify(sponsors));
+  pushToCloud(SPONSORS_KEY);
 }
 
 // 후원자 추가

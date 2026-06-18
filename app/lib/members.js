@@ -1,4 +1,5 @@
 // app/lib/members.js — localStorage 기반 부원 데이터 관리
+import { pushToCloud } from './sync';
 
 const MEMBERS_KEY = 'dongmu_members';
 
@@ -14,6 +15,7 @@ export function getMembers(clubId) {
 // 부원 목록 저장
 function saveMembers(members) {
   localStorage.setItem(MEMBERS_KEY, JSON.stringify(members));
+  pushToCloud(MEMBERS_KEY);
 }
 
 // 부원 추가

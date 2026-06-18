@@ -1,4 +1,5 @@
 // app/lib/schedule.js — localStorage 기반 일정 데이터 관리
+import { pushToCloud } from './sync';
 
 const SCHEDULE_KEY = 'dongmu_schedule';
 
@@ -28,6 +29,7 @@ export function getSchedules(clubId) {
 
 function saveSchedules(schedules) {
   localStorage.setItem(SCHEDULE_KEY, JSON.stringify(schedules));
+  pushToCloud(SCHEDULE_KEY);
 }
 
 // 일정 추가

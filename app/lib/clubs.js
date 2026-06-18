@@ -1,4 +1,5 @@
 // app/lib/clubs.js — localStorage 기반 동아리 데이터 관리
+import { pushToCloud } from './sync';
 
 const CLUBS_KEY = 'dongmu_clubs';
 
@@ -28,6 +29,7 @@ export function createClub(name, startDate) {
 
   clubs.push(newClub);
   localStorage.setItem(CLUBS_KEY, JSON.stringify(clubs));
+  pushToCloud(CLUBS_KEY);
 
   return { success: true, club: newClub };
 }

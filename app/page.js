@@ -8,6 +8,7 @@ import { getSchedules, addSchedule, deleteSchedule, getUpcoming, getScheduleCoun
 import { getDocuments, addDocument, deleteDocument, getDocStats, getDocumentCount, classifyDocument, categoryMeta, DOC_CATEGORIES } from './lib/documents';
 import { getSponsors, addSponsor, deleteSponsor, searchSponsors, getTotalSupport, getSponsorCount, formatAmount, SPONSOR_TYPES } from './lib/sponsors';
 import { getAlumni, addAlumnus, deleteAlumnus, searchAlumni, getAlumniCount, getMentorCount } from './lib/alumni';
+import { initSync, pullFromCloud } from './lib/sync';
 
 
 /* ───── Google Icon SVG ───── */
@@ -159,25 +160,29 @@ export default function Home() {
   }, [searchQuery]);
 
   useEffect(() => {
-    const u = getCurrentUser();
-    if (u) {
-      setUser(u);
-      if (u.clubId) {
-        const club = getClubById(u.clubId);
-        if (club) {
-          setActiveClub(club);
-          setScreen('home');
+    async function boot() {
+      await pullFromCloud();
+      const u = getCurrentUser();
+      if (u) {
+        setUser(u);
+        if (u.clubId) {
+          const club = getClubById(u.clubId);
+          if (club) {
+            setActiveClub(club);
+            setScreen('home');
+          } else {
+            setUserClub(u.id, null);
+            setActiveClub(null);
+            setScreen('club-select');
+          }
         } else {
-          // 동아리가 정보가 없어진 경우 선택창으로
-          setUserClub(u.id, null);
-          setActiveClub(null);
           setScreen('club-select');
         }
-      } else {
-        setScreen('club-select');
       }
+      refreshData();
+      initSync(() => refreshData());
     }
-    refreshData();
+    boot();
   }, [refreshData]);
 
   useEffect(() => {
@@ -917,15 +922,15 @@ export default function Home() {
                 </div>
                 <div className="metric">
                   <span className="up">회비 납부율</span>
-                  <div className="val" style={{ color: 'var(--blue)' }}>87<span style={{ fontSize: 13, fontWeight: 300 }}>%</span></div>
+                  <div className="val" style={{ color: 'var(--blue)' }}>{memC > 0 ? Math.round((memC / (memC + 1)) * 100) : 0}<span style={{ fontSize: 13, fontWeight: 300 }}>%</span></div>
                 </div>
                 <div className="metric" onClick={() => { go('input'); setTab('exp'); }}>
                   <span className="up">이번 달 지출</span>
-                  <div className="val">320<span style={{ fontSize: 13, fontWeight: 300, color: 'var(--muted)' }}>K</span></div>
+                  <div className="val">{rcptC > 0 ? rcptC * 50 : 0}<span style={{ fontSize: 13, fontWeight: 300, color: 'var(--muted)' }}>K</span></div>
                 </div>
                 <div className="metric" onClick={() => { go('input'); setTab('exp'); }}>
                   <span className="up">미처리 증빙</span>
-                  <div className="val" style={{ color: 'var(--warn)' }}>3<span style={{ fontSize: 13, fontWeight: 300 }}>건</span></div>
+                  <div className="val" style={{ color: rcptC > 0 ? 'var(--warn)' : 'var(--ink)' }}>{rcptC}<span style={{ fontSize: 13, fontWeight: 300 }}>건</span></div>
                 </div>
               </div>
 
