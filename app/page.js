@@ -107,8 +107,11 @@ export default function Home() {
   const [schAdd, setSchAdd] = useState(false);
   const [schTitle, setSchTitle] = useState('');
   const [schDate, setSchDate] = useState('');
+  const [schHasTime, setSchHasTime] = useState(true);
   const [schCat, setSchCat] = useState('회의');
   const [schLoc, setSchLoc] = useState('');
+  const [schMemo, setSchMemo] = useState('');
+  const [expandedSchedule, setExpandedSchedule] = useState(null);
   const [calYear, setCalYear] = useState(2026);
   const [calMonth, setCalMonth] = useState(0);
   const [calSelected, setCalSelected] = useState(null);
@@ -132,6 +135,10 @@ export default function Home() {
   const [spnManager, setSpnManager] = useState('');
   const [spnContact, setSpnContact] = useState('');
   const [spnStatus, setSpnStatus] = useState('완료');
+
+  /* ── 펼치기 상태 ── */
+  const [expandedMember, setExpandedMember] = useState(null);
+  const [expandedSponsor, setExpandedSponsor] = useState(null);
 
   /* ── Alumni (졸업 선배) ── */
   const [alumniList, setAlumniList] = useState([]);
@@ -464,16 +471,19 @@ export default function Home() {
 
   /* ───── Schedule Actions ───── */
   function saveSchedule() {
+    const dateVal = schHasTime ? schDate : (schDate ? schDate + 'T00:00' : '');
     const res = addSchedule({
       clubId: user ? user.clubId : '',
       title: schTitle,
-      date: schDate,
+      date: dateVal,
       category: schCat,
       location: schLoc,
+      memo: schMemo,
+      allDay: !schHasTime,
     });
     if (!res.success) { showToast(res.error); return; }
     showToast('일정이 등록되었습니다');
-    setSchTitle(''); setSchDate(''); setSchCat('회의'); setSchLoc('');
+    setSchTitle(''); setSchDate(''); setSchCat('회의'); setSchLoc(''); setSchMemo(''); setSchHasTime(true);
     setSchAdd(false);
     refreshData();
   }
@@ -1100,18 +1110,36 @@ export default function Home() {
               </div>
             ) : (
               membersList.map(m => (
-                <div className="member-card" key={m.id}>
-                  <div className="member-avatar">{m.name.charAt(0)}</div>
-                  <div className="member-info">
-                    <div className="member-name">{m.name}</div>
-                    <div className="member-detail">{m.generation} · {m.department} · {m.studentId}</div>
-                    <div className="member-detail">{m.phone}{m.role ? ` · ${m.role}` : ''}</div>
+                <div key={m.id}>
+                  <div className="member-card" onClick={() => setExpandedMember(expandedMember === m.id ? null : m.id)} style={{ cursor: 'pointer' }}>
+                    <div className="member-avatar">{m.name.charAt(0)}</div>
+                    <div className="member-info">
+                      <div className="member-name">{m.name} {m.role && <span className="badge badge-blue" style={{ height: 18, fontSize: 9, padding: '0 6px', verticalAlign: 1 }}>{m.role}</span>}</div>
+                      <div className="member-detail">{m.department}{m.studentId ? ` · ${m.studentId}` : ''}</div>
+                    </div>
+                    <div style={{ color: 'var(--muted)', fontSize: 16, transition: 'transform .2s', transform: expandedMember === m.id ? 'rotate(180deg)' : 'rotate(0)' }}>
+                      <i className="ti ti-chevron-down"></i>
+                    </div>
                   </div>
-                  <div className="member-actions">
-                    <button className="member-del" onClick={() => setConfirmDelete(m)}>
-                      <i className="ti ti-trash"></i>
-                    </button>
-                  </div>
+                  {expandedMember === m.id && (
+                    <div style={{ padding: '8px 16px 12px', marginTop: -4, marginBottom: 8, background: 'var(--card)', borderRadius: '0 0 12px 12px', border: '1px solid var(--hair)', borderTop: 'none' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', fontSize: 13 }}>
+                        {m.name && <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>이름</span><div style={{ fontWeight: 600 }}>{m.name}</div></div>}
+                        {m.studentId && <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>학번</span><div>{m.studentId}</div></div>}
+                        {m.department && <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>학과</span><div>{m.department}</div></div>}
+                        {m.phone && <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>전화번호</span><div>{m.phone}</div></div>}
+                        {m.email && <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>이메일</span><div>{m.email}</div></div>}
+                        {m.generation && <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>기수</span><div>{m.generation}</div></div>}
+                        {m.team && <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>팀</span><div>{m.team}</div></div>}
+                        {m.role && <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>역할</span><div>{m.role}</div></div>}
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                        <button className="member-del" onClick={(e) => { e.stopPropagation(); setConfirmDelete(m); }} style={{ fontSize: 12, color: 'var(--warn)' }}>
+                          <i className="ti ti-trash" style={{ marginRight: 4 }}></i>삭제
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))
             )}
@@ -1146,9 +1174,17 @@ export default function Home() {
           {schAdd && (
             <div className="card" style={{ marginBottom: 12 }}>
               <div className="inp-g"><label className="inp-l">일정 제목 *</label><input className="inp" placeholder="예: 정기회의, 로켓 발사 테스트" value={schTitle} onChange={e => setSchTitle(e.target.value)} /></div>
-              <div className="inp-g"><label className="inp-l">날짜 / 시간 *</label><input type="datetime-local" className="inp" value={schDate} onChange={e => setSchDate(e.target.value)} onClick={e => e.target.showPicker && e.target.showPicker()} /></div>
+              <div className="inp-g">
+                <label className="inp-l">날짜{schHasTime ? ' / 시간' : ''} *</label>
+                <input type={schHasTime ? 'datetime-local' : 'date'} className="inp" value={schDate} onChange={e => setSchDate(e.target.value)} onClick={e => e.target.showPicker && e.target.showPicker()} />
+                <div className="check-row" onClick={() => { setSchHasTime(v => !v); setSchDate(''); }} style={{ marginTop: 6 }}>
+                  <div className={`check ${!schHasTime ? 'on' : ''}`}>{!schHasTime && <i className="ti ti-check"></i>}</div>
+                  <span style={{ fontSize: 12, color: 'var(--muted)' }}>시간 지정 없이 날짜만 등록</span>
+                </div>
+              </div>
               <div className="inp-g"><label className="inp-l">분류</label><select className="inp" value={schCat} onChange={e => setSchCat(e.target.value)}>{SCHEDULE_CATEGORIES.map(c => <option key={c.key}>{c.key}</option>)}</select></div>
               <div className="inp-g"><label className="inp-l">장소</label><input className="inp" placeholder="예: 공학관 401호" value={schLoc} onChange={e => setSchLoc(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">메모</label><textarea className="inp" placeholder="일정에 대한 메모를 입력하세요" value={schMemo} onChange={e => setSchMemo(e.target.value)} rows={3} style={{ resize: 'vertical' }} /></div>
               <button className="btn btn-fill" onClick={saveSchedule}>일정 저장</button>
             </div>
           )}
@@ -1191,7 +1227,7 @@ export default function Home() {
                       return (
                         <div key={d} onClick={() => setCalSelected(calSelected === d ? null : d)}
                           style={{
-                            padding: '10px 0', minHeight: 44, borderRadius: 8, cursor: 'pointer', position: 'relative',
+                            padding: '12px 0', minHeight: 52, borderRadius: 8, cursor: 'pointer', position: 'relative',
                             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                             background: calSelected === d ? 'var(--blue)' : isToday(d) ? 'rgba(28,105,212,0.12)' : 'transparent',
                             color: calSelected === d ? '#fff' : dayOfWeek === 0 ? 'var(--warn)' : dayOfWeek === 6 ? 'var(--blue)' : 'var(--ink)',
@@ -1274,16 +1310,38 @@ export default function Home() {
                 scheduleList.map(s => {
                   const past = new Date(s.date) < new Date();
                   return (
-                    <div className="member-card" key={s.id} style={{ opacity: past ? 0.5 : 1 }}>
-                      <div className="member-avatar" style={{ background: s.color, fontSize: 18 }}><i className="ti ti-calendar-event"></i></div>
-                      <div className="member-info">
-                        <div className="member-name">{s.title} {past && <span className="cap">· 종료</span>}</div>
-                        <div className="member-detail">{formatScheduleDate(s.date)} · {s.category}</div>
-                        {s.location && <div className="member-detail"><i className="ti ti-map-pin" style={{ fontSize: 11 }}></i> {s.location}</div>}
+                    <div key={s.id}>
+                      <div className="member-card" onClick={() => setExpandedSchedule(expandedSchedule === s.id ? null : s.id)} style={{ cursor: 'pointer', opacity: past ? 0.5 : 1 }}>
+                        <div className="member-avatar" style={{ background: s.color, fontSize: 18 }}><i className="ti ti-calendar-event"></i></div>
+                        <div className="member-info">
+                          <div className="member-name">{s.title} {past && <span className="cap">· 종료</span>}</div>
+                          <div className="member-detail">{s.allDay ? formatScheduleDate(s.date).split(' ')[0] : formatScheduleDate(s.date)} · {s.category}</div>
+                        </div>
+                        <div style={{ color: 'var(--muted)', fontSize: 16, transition: 'transform .2s', transform: expandedSchedule === s.id ? 'rotate(180deg)' : 'rotate(0)' }}>
+                          <i className="ti ti-chevron-down"></i>
+                        </div>
                       </div>
-                      <div className="member-actions">
-                        <button className="member-del" onClick={() => setConfirmDel2({ type: 'schedule', id: s.id, name: s.title })}><i className="ti ti-trash"></i></button>
-                      </div>
+                      {expandedSchedule === s.id && (
+                        <div style={{ padding: '8px 16px 12px', marginTop: -4, marginBottom: 8, background: 'var(--card)', borderRadius: '0 0 12px 12px', border: '1px solid var(--hair)', borderTop: 'none', opacity: past ? 0.5 : 1 }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', fontSize: 13 }}>
+                            <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>일정</span><div style={{ fontWeight: 600 }}>{s.title}</div></div>
+                            <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>분류</span><div>{s.category}</div></div>
+                            <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>날짜</span><div>{s.allDay ? formatScheduleDate(s.date).split(' ')[0] : formatScheduleDate(s.date)}</div></div>
+                            {s.location && <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>장소</span><div>{s.location}</div></div>}
+                          </div>
+                          {s.memo && (
+                            <div style={{ marginTop: 8, padding: '8px 10px', background: 'var(--bg)', borderRadius: 8, fontSize: 13 }}>
+                              <span style={{ color: 'var(--muted)', fontSize: 11, display: 'block', marginBottom: 2 }}>메모</span>
+                              <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{s.memo}</div>
+                            </div>
+                          )}
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                            <button className="member-del" onClick={(e) => { e.stopPropagation(); setConfirmDel2({ type: 'schedule', id: s.id, name: s.title }); }} style={{ fontSize: 12, color: 'var(--warn)' }}>
+                              <i className="ti ti-trash" style={{ marginRight: 4 }}></i>삭제
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })
@@ -1396,7 +1454,7 @@ export default function Home() {
               <div className="inp-g"><label className="inp-l">유형</label><select className="inp" value={spnType} onChange={e => setSpnType(e.target.value)}>{SPONSOR_TYPES.map(t => <option key={t}>{t}</option>)}</select></div>
               <div className="inp-g"><label className="inp-l">후원 금액</label><input className="inp" placeholder="₩ 0" value={spnAmt} onChange={e => setSpnAmt(e.target.value)} /></div>
               <div className="inp-g"><label className="inp-l">담당자</label><input className="inp" placeholder="담당자명" value={spnManager} onChange={e => setSpnManager(e.target.value)} /></div>
-              <div className="inp-g"><label className="inp-l">연락처</label><input className="inp" placeholder="010-0000-0000 / 이메일" value={spnContact} onChange={e => setSpnContact(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">연락처</label><input className="inp" placeholder="010-0000-0000" value={spnContact} onChange={e => setSpnContact(formatPhone(e.target.value))} /></div>
               <div className="inp-g"><label className="inp-l">상태</label><select className="inp" value={spnStatus} onChange={e => setSpnStatus(e.target.value)}><option>완료</option><option>예정</option></select></div>
               <button className="btn btn-fill" onClick={saveSponsor}>후원 내역 저장</button>
             </div>
@@ -1411,16 +1469,34 @@ export default function Home() {
               </div>
             ) : (
               sponsorList.map(s => (
-                <div className="member-card" key={s.id}>
-                  <div className="member-avatar" style={{ background: s.status === '예정' ? 'var(--warn)' : 'var(--ok)' }}>{s.name.charAt(0)}</div>
-                  <div className="member-info">
-                    <div className="member-name">{s.name} <span className="badge badge-blue" style={{ height: 18, fontSize: 9, padding: '0 6px', verticalAlign: 1 }}>{s.type}</span></div>
-                    <div className="member-detail">₩{formatAmount(s.amount)} · {s.status}{s.manager ? ` · ${s.manager}` : ''}</div>
-                    {s.contact && <div className="member-detail">{s.contact}</div>}
+                <div key={s.id}>
+                  <div className="member-card" onClick={() => setExpandedSponsor(expandedSponsor === s.id ? null : s.id)} style={{ cursor: 'pointer' }}>
+                    <div className="member-avatar" style={{ background: s.status === '예정' ? 'var(--warn)' : 'var(--ok)' }}>{s.name.charAt(0)}</div>
+                    <div className="member-info">
+                      <div className="member-name">{s.name} <span className="badge badge-blue" style={{ height: 18, fontSize: 9, padding: '0 6px', verticalAlign: 1 }}>{s.type}</span></div>
+                      <div className="member-detail">₩{formatAmount(s.amount)} · {s.status}</div>
+                    </div>
+                    <div style={{ color: 'var(--muted)', fontSize: 16, transition: 'transform .2s', transform: expandedSponsor === s.id ? 'rotate(180deg)' : 'rotate(0)' }}>
+                      <i className="ti ti-chevron-down"></i>
+                    </div>
                   </div>
-                  <div className="member-actions">
-                    <button className="member-del" onClick={() => setConfirmDel2({ type: 'sponsor', id: s.id, name: s.name })}><i className="ti ti-trash"></i></button>
-                  </div>
+                  {expandedSponsor === s.id && (
+                    <div style={{ padding: '8px 16px 12px', marginTop: -4, marginBottom: 8, background: 'var(--card)', borderRadius: '0 0 12px 12px', border: '1px solid var(--hair)', borderTop: 'none' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', fontSize: 13 }}>
+                        <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>기관/후원자명</span><div style={{ fontWeight: 600 }}>{s.name}</div></div>
+                        <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>유형</span><div>{s.type}</div></div>
+                        <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>후원 금액</span><div>₩{formatAmount(s.amount)}</div></div>
+                        <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>상태</span><div>{s.status}</div></div>
+                        {s.manager && <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>담당자</span><div>{s.manager}</div></div>}
+                        {s.contact && <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>연락처</span><div>{s.contact}</div></div>}
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                        <button className="member-del" onClick={(e) => { e.stopPropagation(); setConfirmDel2({ type: 'sponsor', id: s.id, name: s.name }); }} style={{ fontSize: 12, color: 'var(--warn)' }}>
+                          <i className="ti ti-trash" style={{ marginRight: 4 }}></i>삭제
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))
             )}
@@ -1512,9 +1588,17 @@ export default function Home() {
             <div>
               <div className="cap" style={{ marginBottom: 12 }}><i className="ti ti-info-circle" style={{ fontSize: 14, verticalAlign: -2 }}></i> 동아리 일정을 등록합니다.</div>
               <div className="inp-g"><label className="inp-l">일정 제목 *</label><input className="inp" placeholder="예: 정기회의, MT" value={schTitle} onChange={e => setSchTitle(e.target.value)} /></div>
-              <div className="inp-g"><label className="inp-l">날짜 / 시간 *</label><input type="datetime-local" className="inp" value={schDate} onChange={e => setSchDate(e.target.value)} onClick={e => e.target.showPicker && e.target.showPicker()} /></div>
+              <div className="inp-g">
+                <label className="inp-l">날짜{schHasTime ? ' / 시간' : ''} *</label>
+                <input type={schHasTime ? 'datetime-local' : 'date'} className="inp" value={schDate} onChange={e => setSchDate(e.target.value)} onClick={e => e.target.showPicker && e.target.showPicker()} />
+                <div className="check-row" onClick={() => { setSchHasTime(v => !v); setSchDate(''); }} style={{ marginTop: 6 }}>
+                  <div className={`check ${!schHasTime ? 'on' : ''}`}>{!schHasTime && <i className="ti ti-check"></i>}</div>
+                  <span style={{ fontSize: 12, color: 'var(--muted)' }}>시간 지정 없이 날짜만 등록</span>
+                </div>
+              </div>
               <div className="inp-g"><label className="inp-l">분류</label><select className="inp" value={schCat} onChange={e => setSchCat(e.target.value)}>{SCHEDULE_CATEGORIES.map(c => <option key={c.key}>{c.key}</option>)}</select></div>
               <div className="inp-g"><label className="inp-l">장소</label><input className="inp" placeholder="예: 공학관 401호" value={schLoc} onChange={e => setSchLoc(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">메모</label><textarea className="inp" placeholder="일정에 대한 메모를 입력하세요" value={schMemo} onChange={e => setSchMemo(e.target.value)} rows={3} style={{ resize: 'vertical' }} /></div>
               <button className="btn btn-fill" onClick={saveSchedule}>일정 저장</button>
             </div>
           )}
@@ -1556,7 +1640,7 @@ export default function Home() {
               <div className="inp-g"><label className="inp-l">유형</label><select className="inp" value={spnType} onChange={e => setSpnType(e.target.value)}>{SPONSOR_TYPES.map(t => <option key={t}>{t}</option>)}</select></div>
               <div className="inp-g"><label className="inp-l">후원 금액</label><input className="inp" placeholder="₩ 0" value={spnAmt} onChange={e => setSpnAmt(e.target.value)} /></div>
               <div className="inp-g"><label className="inp-l">담당자</label><input className="inp" placeholder="담당자명" value={spnManager} onChange={e => setSpnManager(e.target.value)} /></div>
-              <div className="inp-g"><label className="inp-l">연락처</label><input className="inp" placeholder="010-0000-0000 / 이메일" value={spnContact} onChange={e => setSpnContact(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">연락처</label><input className="inp" placeholder="010-0000-0000" value={spnContact} onChange={e => setSpnContact(formatPhone(e.target.value))} /></div>
               <div className="inp-g"><label className="inp-l">상태</label><select className="inp" value={spnStatus} onChange={e => setSpnStatus(e.target.value)}><option>완료</option><option>예정</option></select></div>
               <button className="btn btn-fill" onClick={saveSponsor}>후원 내역 저장</button>
             </div>

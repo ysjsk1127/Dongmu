@@ -51,6 +51,7 @@ export function addSchedule(data) {
     color: colorOf(data.category),
     location: data.location || '',
     memo: data.memo || '',
+    allDay: data.allDay || false,
     createdAt: new Date().toISOString(),
   };
 
