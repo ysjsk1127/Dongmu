@@ -41,10 +41,11 @@ export async function signup(email, password, profile) {
     email,
     password: hashed,
     name: profile.name,
+    school: profile.school || '',
     studentId: profile.studentId,
     department: profile.department,
     phone: profile.phone,
-    generation: profile.generation,
+    joinedAt: new Date().toISOString(),
     createdAt: new Date().toISOString(),
   };
 
@@ -102,7 +103,7 @@ export function updateProfile(updates) {
   if (idx === -1) return { success: false, error: '사용자를 찾을 수 없습니다.' };
 
   // 업데이트 가능 필드만 수정
-  const allowed = ['name', 'phone', 'department', 'generation'];
+  const allowed = ['name', 'phone', 'department', 'school'];
   allowed.forEach(key => {
     if (updates[key] !== undefined) {
       users[idx][key] = updates[key];

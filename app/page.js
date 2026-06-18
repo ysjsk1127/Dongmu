@@ -55,11 +55,11 @@ export default function Home() {
 
   /* ── Signup form ── */
   const [sName, setSName] = useState('');
+  const [sSchool, setSSchool] = useState('');
   const [sStudentId, setSStudentId] = useState('');
   const [sDept, setSDept] = useState('');
   const [sPhone, setSPhone] = useState('');
   const [sEmail, setSEmail] = useState('');
-  const [sGen, setSGen] = useState('');
   const [sPw, setSPw] = useState('');
   const [sPwConfirm, setSPwConfirm] = useState('');
   const [signupTouched, setSignupTouched] = useState({});
@@ -210,24 +210,24 @@ export default function Home() {
   /* ───── Auth & Club Actions ───── */
   async function handleSignup() {
     // Mark all fields as touched
-    setSignupTouched({ name: true, studentId: true, dept: true, phone: true, email: true, gen: true, pw: true, pwConfirm: true });
+    setSignupTouched({ name: true, school: true, studentId: true, dept: true, phone: true, email: true, pw: true, pwConfirm: true });
 
     // Validate all fields
     if (!validators.name(sName)) { setAuthError('이름을 2자 이상 입력해주세요.'); return; }
-    if (!validators.studentId(sStudentId)) { setAuthError('학번을 20XXXXXXXX 형식으로 입력해주세요.'); return; }
+    if (!sSchool.trim()) { setAuthError('학교를 입력해주세요.'); return; }
     if (!sDept.trim()) { setAuthError('학과를 입력해주세요.'); return; }
+    if (!validators.studentId(sStudentId)) { setAuthError('학번을 20XXXXXXXX 형식으로 입력해주세요.'); return; }
     if (!validators.phone(sPhone)) { setAuthError('전화번호를 010-0000-0000 형식으로 입력해주세요.'); return; }
     if (!validators.email(sEmail)) { setAuthError('올바른 이메일 주소를 입력해주세요.'); return; }
-    if (!sGen) { setAuthError('가입시기(기수)를 선택해주세요.'); return; }
     if (!validators.password(sPw)) { setAuthError('비밀번호는 최소 6자 이상이어야 합니다.'); return; }
     if (sPw !== sPwConfirm) { setAuthError('비밀번호가 일치하지 않습니다.'); return; }
 
     const result = await signup(sEmail, sPw, {
       name: sName,
+      school: sSchool,
       studentId: sStudentId,
       department: sDept,
       phone: sPhone,
-      generation: sGen,
     });
 
     if (!result.success) {
@@ -291,8 +291,8 @@ export default function Home() {
   }
 
   function resetSignupForm() {
-    setSName(''); setSStudentId(''); setSDept(''); setSPhone('');
-    setSEmail(''); setSGen(''); setSPw(''); setSPwConfirm('');
+    setSName(''); setSSchool(''); setSStudentId(''); setSDept(''); setSPhone('');
+    setSEmail(''); setSPw(''); setSPwConfirm('');
     setSignupTouched({});
     setAuthError('');
   }
@@ -587,6 +587,28 @@ export default function Home() {
               </div>
 
               <div className="inp-g">
+                <label className="inp-l">학교 *</label>
+                <input
+                  className={`inp ${signupTouched.school ? (sSchool.trim() ? 'valid' : 'invalid') : ''}`}
+                  placeholder="한양대학교"
+                  value={sSchool}
+                  onChange={e => setSSchool(e.target.value)}
+                  onBlur={() => markTouched('school')}
+                />
+              </div>
+
+              <div className="inp-g">
+                <label className="inp-l">학과 *</label>
+                <input
+                  className={`inp ${signupTouched.dept ? (sDept.trim() ? 'valid' : 'invalid') : ''}`}
+                  placeholder="컴퓨터소프트웨어학부"
+                  value={sDept}
+                  onChange={e => setSDept(e.target.value)}
+                  onBlur={() => markTouched('dept')}
+                />
+              </div>
+
+              <div className="inp-g">
                 <label className="inp-l">학번 *</label>
                 <input
                   className={`inp ${signupTouched.studentId ? (validators.studentId(sStudentId) ? 'valid' : 'invalid') : ''}`}
@@ -599,17 +621,6 @@ export default function Home() {
                 {signupTouched.studentId && !validators.studentId(sStudentId) && (
                   <div className="auth-err"><i className="ti ti-alert-circle"></i> 20으로 시작하는 10자리 숫자를 입력해주세요</div>
                 )}
-              </div>
-
-              <div className="inp-g">
-                <label className="inp-l">학과 *</label>
-                <input
-                  className={`inp ${signupTouched.dept ? (sDept.trim() ? 'valid' : 'invalid') : ''}`}
-                  placeholder="컴퓨터소프트웨어학부"
-                  value={sDept}
-                  onChange={e => setSDept(e.target.value)}
-                  onBlur={() => markTouched('dept')}
-                />
               </div>
 
               <div className="inp-g">
@@ -644,19 +655,6 @@ export default function Home() {
                 {signupTouched.email && !validators.email(sEmail) && (
                   <div className="auth-err"><i className="ti ti-alert-circle"></i> 올바른 이메일 형식을 입력해주세요</div>
                 )}
-              </div>
-
-              <div className="inp-g">
-                <label className="inp-l">가입시기 (기수) *</label>
-                <select
-                  className={`inp ${signupTouched.gen ? (sGen ? 'valid' : 'invalid') : ''}`}
-                  value={sGen}
-                  onChange={e => setSGen(e.target.value)}
-                  onBlur={() => markTouched('gen')}
-                >
-                  <option value="">선택</option>
-                  {GENERATIONS.map(g => <option key={g}>{g}</option>)}
-                </select>
               </div>
 
               <div className="inp-g">
@@ -1423,7 +1421,7 @@ export default function Home() {
             <>
               <div className="pro-row">
                 <div className="avatar">{user.name.charAt(0)}</div>
-                <div><div className="pro-name">{user.name}</div><div className="pro-role">{activeClub ? activeClub.name : 'HELIOS'} {user.generation} · 총무</div></div>
+                <div><div className="pro-name">{user.name}</div><div className="pro-role">{activeClub ? activeClub.name : 'HELIOS'} · {user.school || ''}</div></div>
               </div>
               <div className="stripe"></div>
 
@@ -1435,12 +1433,16 @@ export default function Home() {
                   <div className="pro-edit-value">{user.name}</div>
                 </div>
                 <div className="pro-edit-row">
-                  <div className="pro-edit-label">학번</div>
-                  <div className="pro-edit-value">{user.studentId}</div>
+                  <div className="pro-edit-label">학교</div>
+                  <div className="pro-edit-value">{user.school || '-'}</div>
                 </div>
                 <div className="pro-edit-row">
                   <div className="pro-edit-label">학과</div>
                   <div className="pro-edit-value">{user.department}</div>
+                </div>
+                <div className="pro-edit-row">
+                  <div className="pro-edit-label">학번</div>
+                  <div className="pro-edit-value">{user.studentId}</div>
                 </div>
                 <div className="pro-edit-row">
                   <div className="pro-edit-label">전화번호</div>
@@ -1451,8 +1453,8 @@ export default function Home() {
                   <div className="pro-edit-value">{user.email}</div>
                 </div>
                 <div className="pro-edit-row">
-                  <div className="pro-edit-label">기수</div>
-                  <div className="pro-edit-value">{user.generation}</div>
+                  <div className="pro-edit-label">가입일</div>
+                  <div className="pro-edit-value">{user.joinedAt ? new Date(user.joinedAt).toLocaleDateString('ko-KR') : user.createdAt ? new Date(user.createdAt).toLocaleDateString('ko-KR') : '-'}</div>
                 </div>
               </div>
 
