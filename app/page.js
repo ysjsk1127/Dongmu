@@ -2,15 +2,17 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { signup, login, logout, getCurrentUser, updateProfile, setUserClub, validators, formatPhone, formatStudentId } from './lib/auth';
-import { getMembers, addMember, deleteMember, searchMembers, getMemberCount } from './lib/members';
+import { getMembers, addMember, deleteMember, updateMember, searchMembers, getMemberCount } from './lib/members';
 import { createClub, getClubs, searchClubs, getClubById } from './lib/clubs';
 import { getSchedules, addSchedule, deleteSchedule, getUpcoming, getScheduleCount, formatScheduleDate, SCHEDULE_CATEGORIES } from './lib/schedule';
 import { getDocuments, addDocument, deleteDocument, getDocStats, getDocumentCount, classifyDocument, categoryMeta, DOC_CATEGORIES } from './lib/documents';
 import { getSponsors, addSponsor, deleteSponsor, searchSponsors, getTotalSupport, getSponsorCount, formatAmount, SPONSOR_TYPES } from './lib/sponsors';
-import { getAlumni, addAlumnus, deleteAlumnus, searchAlumni, getAlumniCount, getMentorCount } from './lib/alumni';
-import { addExpense, deleteExpense, getExpenses, getExpenseCount, getTotalExpense, getExpensesByCategory, getMonthlyExpense, formatAmount as formatExpAmount, EXPENSE_CATEGORIES } from './lib/expenses';
+import { getAlumni, addAlumnus, deleteAlumnus, updateAlumnus, searchAlumni, getAlumniCount, getMentorCount } from './lib/alumni';
+import { addExpense, deleteExpense, getExpenses, getExpenseCount, getTotalExpense, getTotalIncome, getBalance, getExpensesByCategory, getMonthlyExpense, formatAmount as formatExpAmount, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from './lib/expenses';
 import { initSync, pullFromCloud } from './lib/sync';
 
+
+const MEMBER_ROLES = ['회장', '부회장', '총무', '임원진', '부원', 'OB'];
 
 /* ───── Google Icon SVG ───── */
 function GoogleIcon() {
@@ -78,8 +80,13 @@ export default function Home() {
   const [expenseList, setExpenseList] = useState([]);
   const [expC, setExpC] = useState(0);
   const [expTotal, setExpTotal] = useState(0);
+  const [expIncome, setExpIncome] = useState(0);
+  const [expBalance, setExpBalance] = useState(0);
   const [expMonthly, setExpMonthly] = useState(0);
   const [expByCategory, setExpByCategory] = useState([]);
+  const [finType, setFinType] = useState('expense');
+  const [finAdd, setFinAdd] = useState(false);
+  const [expandedFin, setExpandedFin] = useState(null);
 
   /* ── Member registration form ── */
   const [fName, setFName] = useState('');
@@ -184,6 +191,8 @@ export default function Home() {
     setExpenseList(getExpenses(clubId));
     setExpC(getExpenseCount(clubId));
     setExpTotal(getTotalExpense(clubId));
+    setExpIncome(getTotalIncome(clubId));
+    setExpBalance(getBalance(clubId));
     setExpMonthly(getMonthlyExpense(clubId));
     setExpByCategory(getExpensesByCategory(clubId));
   }, [searchQuery]);
@@ -231,6 +240,8 @@ export default function Home() {
 
 
   /* ───── Helpers ───── */
+  const isManager = user && membersList.find(m => (m.email === user.email || m.studentId === user.studentId) && m.role === '회장');
+
   function go(id) {
     setScreen(id);
     setAuthError('');
@@ -558,15 +569,38 @@ export default function Home() {
   function saveExp() {
     const res = addExpense({
       clubId: user ? user.clubId : '',
+      type: finType,
       category: fCat,
       amount: fAmt,
       memo: fMemo,
     });
     if (!res.success) { showToast(res.error); return; }
-    showToast('증빙 등록 완료');
-    setFCat(''); setFAmt(''); setFMemo('');
+    showToast(finType === 'income' ? '수입 등록 완료' : '지출 등록 완료');
+    setFCat(''); setFAmt(''); setFMemo(''); setFinType('expense'); setFinAdd(false);
     refreshData();
-    setTimeout(() => go('report'), 1200);
+  }
+
+  function changeMemberRole(memberId, newRole) {
+    if (newRole === 'OB') {
+      const member = membersList.find(m => m.id === memberId);
+      if (member) {
+        addAlumnus({
+          clubId: user ? user.clubId : '',
+          name: member.name,
+          generation: member.generation || '',
+          graduationYear: '',
+          company: '',
+          position: '',
+          phone: member.phone || '',
+          email: member.email || '',
+          mentoring: false,
+          fromMember: true,
+        });
+      }
+    }
+    updateMember(memberId, { role: newRole });
+    refreshData();
+    showToast('역할이 변경되었습니다');
   }
 
   function genPkg() {
@@ -587,7 +621,7 @@ export default function Home() {
   const activeNav = navMap[screen] || screen;
   const showNav = !['onboard', 'login', 'signup', 'club-select'].includes(screen);
 
-  if (!mounted) return <div className="shell"><div className="area" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}><div style={{ textAlign: 'center' }}><i className="ti ti-rocket" style={{ fontSize: 48, color: 'var(--blue)' }}></i><div style={{ marginTop: 12, fontSize: 14, color: 'var(--muted)' }}>로딩 중...</div></div></div></div>;
+  if (!mounted) return <div className="shell"><div className="area" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}><div style={{ fontSize: 14, color: 'var(--muted)' }}>로딩중...</div></div></div>;
 
   return (
     <div className={`shell${showNav ? ' has-nav' : ''}`}>
@@ -988,17 +1022,17 @@ export default function Home() {
                   <span className="up">총 부원</span>
                   <div className="val">{memC}<span style={{ fontSize: 13, fontWeight: 300, color: 'var(--muted)' }}>명</span></div>
                 </div>
-                <div className="metric" onClick={() => go('report')}>
-                  <span className="up">이번 달 지출</span>
-                  <div className="val" style={{ color: 'var(--blue)' }}>{formatExpAmount(expMonthly)}<span style={{ fontSize: 13, fontWeight: 300 }}>원</span></div>
+                <div className="metric" onClick={() => go('expenses')}>
+                  <span className="up">잔액</span>
+                  <div className="val" style={{ color: expBalance >= 0 ? 'var(--ok)' : 'var(--warn)' }}>{expBalance >= 0 ? '+' : ''}{formatExpAmount(expBalance)}<span style={{ fontSize: 13, fontWeight: 300 }}>원</span></div>
                 </div>
-                <div className="metric" onClick={() => go('report')}>
+                <div className="metric" onClick={() => go('expenses')}>
                   <span className="up">총 지출</span>
-                  <div className="val">{formatExpAmount(expTotal)}<span style={{ fontSize: 13, fontWeight: 300, color: 'var(--muted)' }}>원</span></div>
+                  <div className="val" style={{ color: 'var(--warn)' }}>{formatExpAmount(expTotal)}<span style={{ fontSize: 13, fontWeight: 300, color: 'var(--muted)' }}>원</span></div>
                 </div>
-                <div className="metric" onClick={() => { go('input'); setTab('exp'); }}>
-                  <span className="up">지출 건수</span>
-                  <div className="val">{expC}<span style={{ fontSize: 13, fontWeight: 300 }}>건</span></div>
+                <div className="metric" onClick={() => go('expenses')}>
+                  <span className="up">총 수입</span>
+                  <div className="val" style={{ color: 'var(--ok)' }}>{formatExpAmount(expIncome)}<span style={{ fontSize: 13, fontWeight: 300 }}>원</span></div>
                 </div>
               </div>
 
@@ -1010,7 +1044,7 @@ export default function Home() {
                   { id: 'drive', icon: 'ti-folder', label: '자료 관리', color: 'var(--gdrive)' },
                   { id: 'sponsors', icon: 'ti-heart-handshake', label: '후원자 관리', color: 'var(--warn)' },
                   { id: 'alumni', icon: 'ti-school', label: '졸업 선배', color: 'var(--google)' },
-                  { id: 'report', icon: 'ti-chart-bar', label: '회계 리포트', color: 'var(--blue-l)' },
+                  { id: 'expenses', icon: 'ti-wallet', label: '재무 관리', color: 'var(--blue-l)' },
                 ].map(m => (
                   <div className="hub-card" key={m.id} onClick={() => go(m.id)}>
                     <i className={`ti ${m.icon}`} style={{ color: m.color }}></i>
@@ -1131,11 +1165,24 @@ export default function Home() {
                         {m.email && <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>이메일</span><div>{m.email}</div></div>}
                         {m.generation && <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>기수</span><div>{m.generation}</div></div>}
                         {m.team && <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>팀</span><div>{m.team}</div></div>}
-                        {m.role && <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>역할</span><div>{m.role}</div></div>}
+                        <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>역할</span><div>{m.role || '부원'}</div></div>
                       </div>
+                      {isManager && (
+                        <div style={{ marginTop: 8, padding: '8px 10px', background: 'var(--bg)', borderRadius: 8 }}>
+                          <span style={{ color: 'var(--muted)', fontSize: 11, display: 'block', marginBottom: 4 }}>역할 변경</span>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                            {MEMBER_ROLES.map(r => (
+                              <button key={r} onClick={(e) => { e.stopPropagation(); changeMemberRole(m.id, r); }}
+                                style={{ padding: '4px 10px', fontSize: 12, borderRadius: 6, border: '1px solid var(--hair)', background: m.role === r ? 'var(--blue)' : 'var(--card)', color: m.role === r ? '#fff' : 'var(--body)', cursor: 'pointer' }}>
+                                {r}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
-                        <button className="member-del" onClick={(e) => { e.stopPropagation(); setConfirmDelete(m); }} style={{ fontSize: 12, color: 'var(--warn)' }}>
-                          <i className="ti ti-trash" style={{ marginRight: 4 }}></i>삭제
+                        <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(m); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 14px', fontSize: 12, color: 'var(--warn)', background: 'none', border: '1px solid var(--warn)', borderRadius: 8, cursor: 'pointer' }}>
+                          <i className="ti ti-trash"></i>삭제
                         </button>
                       </div>
                     </div>
@@ -1491,8 +1538,8 @@ export default function Home() {
                         {s.contact && <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>연락처</span><div>{s.contact}</div></div>}
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
-                        <button className="member-del" onClick={(e) => { e.stopPropagation(); setConfirmDel2({ type: 'sponsor', id: s.id, name: s.name }); }} style={{ fontSize: 12, color: 'var(--warn)' }}>
-                          <i className="ti ti-trash" style={{ marginRight: 4 }}></i>삭제
+                        <button className="member-del" onClick={(e) => { e.stopPropagation(); setConfirmDel2({ type: 'sponsor', id: s.id, name: s.name }); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 14px', fontSize: 12, color: 'var(--warn)', background: 'none', border: '1px solid var(--warn)', borderRadius: 8, cursor: 'pointer' }}>
+                          <i className="ti ti-trash"></i>삭제
                         </button>
                       </div>
                     </div>
@@ -1576,7 +1623,7 @@ export default function Home() {
         <div className={`scr ${screen === 'input' ? 'on' : ''}`}>
           <h2>기록 관리</h2>
           <div className="tabs" style={{ flexWrap: 'wrap' }}>
-            {[['sch','일정','ti-calendar'],['doc','자료','ti-folder'],['exp','지출','ti-receipt'],['spn','후원','ti-heart-handshake'],['alm','선배','ti-school']].map(([key, label, icon]) => (
+            {[['sch','일정','ti-calendar'],['doc','자료','ti-folder'],['exp','재무','ti-wallet'],['spn','후원','ti-heart-handshake'],['alm','선배','ti-school']].map(([key, label, icon]) => (
               <button key={key} className={`tab ${tab === key ? 'on' : ''}`} onClick={() => setTab(key)}>
                 <i className={`ti ${icon}`} style={{ fontSize: 14, verticalAlign: -2, marginRight: 2 }}></i>
                 {label}
@@ -1617,19 +1664,15 @@ export default function Home() {
 
           {tab === 'exp' && (
             <div>
-              <div className="cam-zone" onClick={() => showToast('OCR 인식 시작...')}>
-                <i className="ti ti-camera"></i>
-                <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase' }}>영수증 촬영</div>
-                <div className="cap" style={{ marginTop: 4 }}>OCR 자동 인식으로 입력</div>
+              <div className="cap" style={{ marginBottom: 12 }}><i className="ti ti-info-circle" style={{ fontSize: 14, verticalAlign: -2 }}></i> 수입/지출 내역을 등록합니다.</div>
+              <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
+                <button className={`btn btn-sm ${finType === 'expense' ? 'btn-fill' : 'btn-ghost'}`} onClick={() => { setFinType('expense'); setFCat(''); }} style={{ flex: 1 }}>지출</button>
+                <button className={`btn btn-sm ${finType === 'income' ? 'btn-fill' : 'btn-ghost'}`} onClick={() => { setFinType('income'); setFCat(''); }} style={{ flex: 1 }}>수입</button>
               </div>
-              <div className="inp-g"><label className="inp-l">지출 항목</label><select className="inp" value={fCat} onChange={e => setFCat(e.target.value)}><option value="">선택</option>{EXPENSE_CATEGORIES.map(c => <option key={c}>{c}</option>)}</select></div>
+              <div className="inp-g"><label className="inp-l">{finType === 'income' ? '수입 항목' : '지출 항목'}</label><select className="inp" value={fCat} onChange={e => setFCat(e.target.value)}><option value="">선택</option>{(finType === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map(c => <option key={c}>{c}</option>)}</select></div>
               <div className="inp-g"><label className="inp-l">금액</label><input className="inp" placeholder="₩ 0" value={fAmt} onChange={e => setFAmt(e.target.value)} /></div>
               <div className="inp-g"><label className="inp-l">메모</label><input className="inp" placeholder="간단한 설명" value={fMemo} onChange={e => setFMemo(e.target.value)} /></div>
-              <div className="inp-g">
-                <label className="inp-l">영수증 파일</label>
-                <input type="file" className="inp" style={{ padding: '12px 16px' }} onChange={() => showToast('파일이 선택되었습니다.')} />
-              </div>
-              <button className="btn btn-fill" onClick={saveExp}>증빙 등록</button>
+              <button className="btn btn-fill" onClick={saveExp}>{finType === 'income' ? '수입 등록' : '지출 등록'}</button>
             </div>
           )}
 
@@ -1669,6 +1712,83 @@ export default function Home() {
 
 
 
+        {/* ════════ EXPENSES (재무 관리) ════════ */}
+        <div className={`scr ${screen === 'expenses' ? 'on' : ''}`}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+            <button style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: 0 }} onClick={() => go('home')}>
+              <i className="ti ti-arrow-left" style={{ fontSize: 22 }}></i>
+            </button>
+            <h2 style={{ margin: 0 }}>재무 관리</h2>
+          </div>
+          <div className="stripe"></div>
+
+          <div className="grid2" style={{ marginBottom: 12 }}>
+            <div className="metric"><span className="up">총 수입</span><div className="val" style={{ color: 'var(--ok)' }}>{formatExpAmount(expIncome)}<span style={{ fontSize: 13, fontWeight: 300, color: 'var(--muted)' }}>원</span></div></div>
+            <div className="metric"><span className="up">총 지출</span><div className="val" style={{ color: 'var(--warn)' }}>{formatExpAmount(expTotal)}<span style={{ fontSize: 13, fontWeight: 300, color: 'var(--muted)' }}>원</span></div></div>
+          </div>
+          <div className="metric" style={{ marginBottom: 12 }}><span className="up">잔액</span><div className="val" style={{ color: expBalance >= 0 ? 'var(--blue)' : 'var(--warn)' }}>{expBalance >= 0 ? '+' : ''}{formatExpAmount(expBalance)}<span style={{ fontSize: 13, fontWeight: 300, color: 'var(--muted)' }}>원</span></div></div>
+
+          <button className="btn btn-fill btn-sm" onClick={() => setFinAdd(v => !v)} style={{ marginBottom: 12 }}>
+            <i className={`ti ${finAdd ? 'ti-x' : 'ti-plus'}`} style={{ fontSize: 14 }}></i> {finAdd ? '닫기' : '내역 추가'}
+          </button>
+
+          {finAdd && (
+            <div className="card" style={{ marginBottom: 12 }}>
+              <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
+                <button className={`btn btn-sm ${finType === 'expense' ? 'btn-fill' : 'btn-ghost'}`} onClick={() => { setFinType('expense'); setFCat(''); }} style={{ flex: 1 }}>지출</button>
+                <button className={`btn btn-sm ${finType === 'income' ? 'btn-fill' : 'btn-ghost'}`} onClick={() => { setFinType('income'); setFCat(''); }} style={{ flex: 1 }}>수입</button>
+              </div>
+              <div className="inp-g"><label className="inp-l">{finType === 'income' ? '수입 항목' : '지출 항목'}</label><select className="inp" value={fCat} onChange={e => setFCat(e.target.value)}><option value="">선택</option>{(finType === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map(c => <option key={c}>{c}</option>)}</select></div>
+              <div className="inp-g"><label className="inp-l">금액</label><input className="inp" placeholder="₩ 0" value={fAmt} onChange={e => setFAmt(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">메모</label><input className="inp" placeholder="간단한 설명" value={fMemo} onChange={e => setFMemo(e.target.value)} /></div>
+              <button className="btn btn-fill" onClick={saveExp}>{finType === 'income' ? '수입 등록' : '지출 등록'}</button>
+            </div>
+          )}
+
+          <div className="card" style={{ padding: '4px 16px' }}>
+            {expenseList.length === 0 ? (
+              <div className="empty-state">
+                <i className="ti ti-wallet"></i>
+                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>등록된 내역이 없습니다</div>
+                <div className="cap">위 &quot;내역 추가&quot;로 수입/지출을 등록해보세요</div>
+              </div>
+            ) : (
+              expenseList.map(e => (
+                <div key={e.id}>
+                  <div className="member-card" onClick={() => setExpandedFin(expandedFin === e.id ? null : e.id)} style={{ cursor: 'pointer' }}>
+                    <div className="member-avatar" style={{ background: e.type === 'income' ? 'var(--ok)' : 'var(--warn)', fontSize: 18 }}>
+                      <i className={`ti ${e.type === 'income' ? 'ti-plus' : 'ti-minus'}`}></i>
+                    </div>
+                    <div className="member-info">
+                      <div className="member-name">{e.category} <span className={`badge ${e.type === 'income' ? 'badge-ok' : 'badge-warn'}`} style={{ height: 18, fontSize: 9, padding: '0 6px', verticalAlign: 1 }}>{e.type === 'income' ? '수입' : '지출'}</span></div>
+                      <div className="member-detail">₩{formatExpAmount(e.amount)}{e.memo ? ` · ${e.memo}` : ''}</div>
+                    </div>
+                    <div style={{ color: 'var(--muted)', fontSize: 16, transition: 'transform .2s', transform: expandedFin === e.id ? 'rotate(180deg)' : 'rotate(0)' }}>
+                      <i className="ti ti-chevron-down"></i>
+                    </div>
+                  </div>
+                  {expandedFin === e.id && (
+                    <div style={{ padding: '8px 16px 12px', marginTop: -4, marginBottom: 8, background: 'var(--card)', borderRadius: '0 0 12px 12px', border: '1px solid var(--hair)', borderTop: 'none' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', fontSize: 13 }}>
+                        <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>유형</span><div style={{ fontWeight: 600 }}>{e.type === 'income' ? '수입' : '지출'}</div></div>
+                        <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>항목</span><div>{e.category}</div></div>
+                        <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>금액</span><div>₩{formatExpAmount(e.amount)}</div></div>
+                        <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>등록일</span><div>{new Date(e.createdAt).toLocaleDateString('ko-KR')}</div></div>
+                        {e.memo && <div style={{ gridColumn: '1 / -1' }}><span style={{ color: 'var(--muted)', fontSize: 11 }}>메모</span><div>{e.memo}</div></div>}
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                        <button onClick={(ev) => { ev.stopPropagation(); deleteExpense(e.id); refreshData(); showToast('삭제되었습니다'); setExpandedFin(null); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 14px', fontSize: 12, color: 'var(--warn)', background: 'none', border: '1px solid var(--warn)', borderRadius: 8, cursor: 'pointer' }}>
+                          <i className="ti ti-trash"></i>삭제
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
         {/* ════════ REPORT ════════ */}
         <div className={`scr ${screen === 'report' ? 'on' : ''}`}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
@@ -1695,13 +1815,14 @@ export default function Home() {
             ))}
           </div>
 
-          {/* 회계 리포트 */}
+          {/* 재무 현황 */}
           <div className="stripe"></div>
           <div className="card">
-            <h3>회계 리포트</h3>
-            <div className="rpt-row"><span className="rpt-l">이번 달 지출</span><span className="rpt-v" style={{ color: 'var(--warn)' }}>₩{formatExpAmount(expMonthly)}</span></div>
+            <h3>재무 현황</h3>
+            <div className="rpt-row"><span className="rpt-l">총 수입</span><span className="rpt-v" style={{ color: 'var(--ok)' }}>₩{formatExpAmount(expIncome)}</span></div>
             <div className="rpt-row"><span className="rpt-l">총 지출</span><span className="rpt-v" style={{ color: 'var(--warn)' }}>₩{formatExpAmount(expTotal)}</span></div>
-            <div className="rpt-row"><span className="rpt-l">지출 건수</span><span className="rpt-v">{expC}건</span></div>
+            <div className="rpt-row"><span className="rpt-l">잔액</span><span className="rpt-v" style={{ color: expBalance >= 0 ? 'var(--blue)' : 'var(--warn)' }}>{expBalance >= 0 ? '+' : ''}₩{formatExpAmount(Math.abs(expBalance))}</span></div>
+            <div className="rpt-row"><span className="rpt-l">거래 건수</span><span className="rpt-v">{expC}건</span></div>
           </div>
 
           {/* 항목별 지출 차트 */}
@@ -1723,7 +1844,7 @@ export default function Home() {
                 })}
               </div>
             ) : (
-              <div className="cap" style={{ textAlign: 'center', padding: 20 }}>지출 데이터가 없습니다. 기록 탭에서 지출을 등록해주세요.</div>
+              <div className="cap" style={{ textAlign: 'center', padding: 20 }}>지출 데이터가 없습니다. 재무 관리에서 등록해주세요.</div>
             )}
           </div>
 
@@ -1739,7 +1860,7 @@ export default function Home() {
                 <h3>인수인계 패키지</h3>
                 {[
                   { icon: 'ti-users', label: `부원 현황 (${memC}명)` },
-                  { icon: 'ti-receipt', label: `회계 장부 (${expC}건, ₩${formatExpAmount(expTotal)})` },
+                  { icon: 'ti-wallet', label: `재무 내역 (${expC}건, 잔액 ₩${formatExpAmount(Math.abs(expBalance))})` },
                   { icon: 'ti-calendar', label: `활동 일정 (${schC}건)` },
                   { icon: 'ti-folder', label: `자료 (${docC}건)` },
                   { icon: 'ti-heart-handshake', label: `후원 내역 (₩${formatAmount(sponsorTotal)})` },

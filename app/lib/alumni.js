@@ -58,6 +58,16 @@ export function deleteAlumnus(id) {
   return { success: true };
 }
 
+// 졸업 선배 수정
+export function updateAlumnus(id, updates) {
+  const list = getAlumni();
+  const idx = list.findIndex(a => a.id === id);
+  if (idx === -1) return { success: false, error: '해당 선배를 찾을 수 없습니다.' };
+  list[idx] = { ...list[idx], ...updates };
+  saveAlumni(list);
+  return { success: true, alumnus: list[idx] };
+}
+
 // 졸업 선배 검색
 export function searchAlumni(query, clubId) {
   const list = getAlumni(clubId);
