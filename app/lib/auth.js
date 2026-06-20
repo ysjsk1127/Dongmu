@@ -102,8 +102,7 @@ export function updateProfile(updates) {
   const idx = users.findIndex(u => u.id === session.id);
   if (idx === -1) return { success: false, error: '사용자를 찾을 수 없습니다.' };
 
-  // 업데이트 가능 필드만 수정
-  const allowed = ['name', 'phone', 'department', 'school'];
+  const allowed = ['name', 'phone', 'department', 'school', 'studentId', 'email'];
   allowed.forEach(key => {
     if (updates[key] !== undefined) {
       users[idx][key] = updates[key];
@@ -139,6 +138,105 @@ export function setUserClub(userId, clubId) {
   return { success: true, user: users[idx] };
 }
 
+
+// 비밀번호 변경
+export async function changePassword(currentPw, newPw) {
+  const session = getCurrentUser();
+  if (!session) return { success: false, error: '로그인이 필요합니다.' };
+
+  const users = getUsers();
+  const idx = users.findIndex(u => u.id === session.id);
+  if (idx === -1) return { success: false, error: '사용자를 찾을 수 없습니다.' };
+
+  const currentHash = await hashPassword(currentPw);
+  if (users[idx].password !== currentHash) {
+    return { success: false, error: '현재 비밀번호가 일치하지 않습니다.' };
+  }
+
+  users[idx].password = await hashPassword(newPw);
+  saveUsers(users);
+  return { success: true };
+}
+
+// 강제 탈퇴 (계정 차단)
+const BANNED_KEY = 'dongmu_banned';
+
+export function banUser(email, clubId) {
+  const raw = localStorage.getItem(BANNED_KEY);
+  const banned = raw ? JSON.parse(raw) : [];
+  if (!banned.find(b => b.email === email && b.clubId === clubId)) {
+    banned.push({ email, clubId });
+    localStorage.setItem(BANNED_KEY, JSON.stringify(banned));
+    pushToCloud(BANNED_KEY);
+  }
+}
+
+export function isBanned(email, clubId) {
+  const raw = localStorage.getItem(BANNED_KEY);
+  const banned = raw ? JSON.parse(raw) : [];
+  return banned.some(b => b.email === email && b.clubId === clubId);
+}
+
+// 가입 대기 요청 관리
+const PENDING_KEY = 'dongmu_pending';
+
+function getPendingList() {
+  if (typeof window === 'undefined') return [];
+  const raw = localStorage.getItem(PENDING_KEY);
+  return raw ? JSON.parse(raw) : [];
+}
+
+function savePendingList(list) {
+  localStorage.setItem(PENDING_KEY, JSON.stringify(list));
+  pushToCloud(PENDING_KEY);
+}
+
+export function addPendingRequest(userData, clubId) {
+  const list = getPendingList();
+  if (list.find(p => p.email === userData.email && p.clubId === clubId)) {
+    return { success: false, error: '이미 가입 요청을 보냈습니다.' };
+  }
+  list.push({
+    id: Date.now().toString(),
+    email: userData.email,
+    name: userData.name,
+    school: userData.school || '',
+    studentId: userData.studentId || '',
+    department: userData.department || '',
+    phone: userData.phone || '',
+    clubId,
+    requestedAt: new Date().toISOString(),
+  });
+  savePendingList(list);
+  return { success: true };
+}
+
+export function getPendingRequests(clubId) {
+  return getPendingList().filter(p => p.clubId === clubId);
+}
+
+export function hasPendingRequest(email, clubId) {
+  return getPendingList().some(p => p.email === email && p.clubId === clubId);
+}
+
+export function getUserPending(email) {
+  return getPendingList().find(p => p.email === email);
+}
+
+export function approvePending(pendingId) {
+  const list = getPendingList();
+  const idx = list.findIndex(p => p.id === pendingId);
+  if (idx === -1) return null;
+  const approved = list.splice(idx, 1)[0];
+  savePendingList(list);
+  return approved;
+}
+
+export function rejectPending(pendingId) {
+  const list = getPendingList();
+  const filtered = list.filter(p => p.id !== pendingId);
+  savePendingList(filtered);
+}
 
 // 유효성 검증 헬퍼
 export const validators = {

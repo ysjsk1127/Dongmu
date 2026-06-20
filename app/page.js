@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { signup, login, logout, getCurrentUser, updateProfile, setUserClub, validators, formatPhone, formatStudentId } from './lib/auth';
+import { signup, login, logout, getCurrentUser, updateProfile, setUserClub, changePassword, banUser, isBanned, addPendingRequest, getPendingRequests, hasPendingRequest, getUserPending, approvePending, rejectPending, validators, formatPhone, formatStudentId } from './lib/auth';
 import { getMembers, addMember, deleteMember, updateMember, searchMembers, getMemberCount } from './lib/members';
 import { createClub, getClubs, searchClubs, getClubById } from './lib/clubs';
 import { getSchedules, addSchedule, deleteSchedule, getUpcoming, getScheduleCount, formatScheduleDate, SCHEDULE_CATEGORIES } from './lib/schedule';
@@ -116,6 +116,7 @@ export default function Home() {
   const [membersList, setMembersList] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [pendingList, setPendingList] = useState([]);
 
   /* ── Schedule (일정) ── */
   const [scheduleList, setScheduleList] = useState([]);
@@ -176,6 +177,7 @@ export default function Home() {
 
   /* ── 달력 일정 펼치기 ── */
   const [expandedCalSch, setExpandedCalSch] = useState(null);
+  const [homeCalSelected, setHomeCalSelected] = useState(null);
 
   /* ── 알림 설정 ── */
   const [notifySchedule, setNotifySchedule] = useState(true);
@@ -195,6 +197,12 @@ export default function Home() {
   const [editName, setEditName] = useState('');
   const [editPhone, setEditPhone] = useState('');
   const [editDept, setEditDept] = useState('');
+  const [editSchool, setEditSchool] = useState('');
+  const [editStudentId, setEditStudentId] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editCurPw, setEditCurPw] = useState('');
+  const [editNewPw, setEditNewPw] = useState('');
+  const [editNewPwConfirm, setEditNewPwConfirm] = useState('');
 
   /* ── 화면 전환 로딩 ── */
   const [screenLoading, setScreenLoading] = useState(false);
@@ -209,6 +217,7 @@ export default function Home() {
     const clubId = currentUser ? currentUser.clubId : null;
     setMemC(getMemberCount(clubId));
     setMembersList(searchQuery ? searchMembers(searchQuery, clubId) : getMembers(clubId));
+    setPendingList(getPendingRequests(clubId));
 
     // 일정
     setScheduleList(getSchedules(clubId));
@@ -277,18 +286,30 @@ export default function Home() {
       if (u) {
         setUser(u);
         if (u.clubId) {
-          const club = getClubById(u.clubId);
-          if (club) {
-            setActiveClub(club);
-            autoRegisterMember(u, club.id, '부원');
-            setScreen('home');
-          } else {
+          if (isBanned(u.email, u.clubId)) {
             setUserClub(u.id, null);
             setActiveClub(null);
             setScreen('club-select');
+            setAuthError('해당 동아리에서 탈퇴 처리되었습니다.');
+          } else {
+            const club = getClubById(u.clubId);
+            if (club) {
+              setActiveClub(club);
+              autoRegisterMember(u, club.id, '부원');
+              setScreen('home');
+            } else {
+              setUserClub(u.id, null);
+              setActiveClub(null);
+              setScreen('club-select');
+            }
           }
         } else {
-          setScreen('club-select');
+          const pending = getUserPending(u.email);
+          if (pending) {
+            setScreen('pending-wait');
+          } else {
+            setScreen('club-select');
+          }
         }
       }
       refreshData();
@@ -406,9 +427,14 @@ export default function Home() {
         go('club-select');
       }
     } else {
-      setClubSelectMode('choose');
-      setClubError('');
-      go('club-select');
+      const pending = getUserPending(result.user.email);
+      if (pending) {
+        go('pending-wait');
+      } else {
+        setClubSelectMode('choose');
+        setClubError('');
+        go('club-select');
+      }
     }
   }
 
@@ -466,30 +492,32 @@ export default function Home() {
 
   function handleJoinClub(clubId) {
     if (!user) return;
+    if (isBanned(user.email, clubId)) {
+      setClubError('해당 동아리에서 탈퇴 처리되어 가입할 수 없습니다.');
+      return;
+    }
+    if (hasPendingRequest(user.email, clubId)) {
+      setClubError('이미 가입 요청을 보냈습니다. 회장의 승인을 기다려주세요.');
+      return;
+    }
     const club = getClubById(clubId);
     if (!club) {
       setClubError('해당 동아리를 찾을 수 없습니다.');
       return;
     }
 
-    const userRes = setUserClub(user.id, clubId);
-    if (!userRes.success) {
-      setClubError(userRes.error);
+    const result = addPendingRequest(user, clubId);
+    if (!result.success) {
+      setClubError(result.error);
       return;
     }
 
-    setUser(userRes.user);
-    setActiveClub(club);
-    autoRegisterMember(userRes.user, clubId, '부원');
-    showToast(`"${club.name}" 동아리에 가입되었습니다.`);
-
+    showToast(`"${club.name}" 가입 요청을 보냈습니다.`);
     setClubSearchQuery('');
     setFoundClubs([]);
     setClubError('');
     setClubSelectMode('choose');
-
-    refreshData();
-    go('home');
+    go('pending-wait');
   }
 
   // 동아리 검색 목록 업데이트
@@ -549,9 +577,13 @@ export default function Home() {
   }
 
   function handleDeleteMember(id) {
+    const member = membersList.find(m => m.id === id);
     const result = deleteMember(id);
     if (result.success) {
-      showToast('부원이 삭제되었습니다.');
+      if (member && member.email) {
+        banUser(member.email, user ? user.clubId : '');
+      }
+      showToast('부원이 강제 탈퇴되었습니다.');
       refreshData();
     }
     setConfirmDelete(null);
@@ -944,7 +976,7 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
   /* ───── Nav state ───── */
   const navMap = { home: 'home', input: 'input', report: 'report', my: 'my', drive: 'home', members: 'home', schedule: 'home', sponsors: 'home', alumni: 'home', 'my-activity': 'my', 'my-receipts': 'my', 'my-notify': 'my', 'my-privacy': 'my', 'my-alerts': 'home' };
   const activeNav = navMap[screen] || screen;
-  const showNav = !['onboard', 'login', 'signup', 'club-select'].includes(screen);
+  const showNav = !['onboard', 'login', 'signup', 'club-select', 'pending-wait'].includes(screen);
 
   if (!mounted) return <div className="shell"><div className="area" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}><div style={{ fontSize: 14, color: 'var(--muted)' }}>로딩중...</div></div></div>;
 
@@ -1325,6 +1357,57 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
           )}
         </div>
 
+        {/* ════════ PENDING WAIT ════════ */}
+        <div className={`scr ${screen === 'pending-wait' ? 'on' : ''}`}>
+          <div className="onb-center" style={{ textAlign: 'center' }}>
+            <div style={{ width: 80, height: 80, borderRadius: 20, background: 'rgba(28,105,212,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+              <i className="ti ti-hourglass" style={{ fontSize: 36, color: 'var(--blue)' }}></i>
+            </div>
+            <h2 style={{ marginBottom: 8 }}>가입 승인 대기 중</h2>
+            <div className="cap" style={{ marginBottom: 24, lineHeight: 1.6 }}>
+              {(() => {
+                const p = user ? getUserPending(user.email) : null;
+                if (p) {
+                  const club = getClubById(p.clubId);
+                  return <>
+                    <strong>{club ? club.name : '동아리'}</strong>에 가입 요청을 보냈습니다.<br/>
+                    회장이 승인하면 앱을 사용할 수 있습니다.<br/>
+                    <span style={{ fontSize: 11, color: 'var(--muted)' }}>요청일: {new Date(p.requestedAt).toLocaleDateString('ko-KR')}</span>
+                  </>;
+                }
+                return '회장의 승인을 기다려주세요.';
+              })()}
+            </div>
+            <button className="btn btn-fill" style={{ marginBottom: 8 }} onClick={async () => {
+              try { await pullFromCloud(); } catch (_) {}
+              const u = getCurrentUser();
+              if (u) {
+                const p = getUserPending(u.email);
+                if (!p) {
+                  if (u.clubId) {
+                    const club = getClubById(u.clubId);
+                    if (club) { setActiveClub(club); setScreen('home'); refreshData(); showToast('가입이 승인되었습니다!'); return; }
+                  }
+                  setClubSelectMode('choose'); go('club-select');
+                } else {
+                  showToast('아직 승인 대기 중입니다.');
+                }
+              }
+            }}>
+              <i className="ti ti-refresh" style={{ fontSize: 16 }}></i> 승인 상태 확인
+            </button>
+            <button className="btn btn-ghost" style={{ color: 'var(--warn)' }} onClick={() => {
+              if (user) {
+                const p = getUserPending(user.email);
+                if (p) rejectPending(p.id);
+              }
+              handleLogout();
+            }}>
+              요청 취소 및 로그아웃
+            </button>
+          </div>
+        </div>
+
         {/* ════════ HOME ════════ */}
         <div className={`scr ${screen === 'home' ? 'on' : ''}`}>
           <div className="up" style={{ marginBottom: 4 }}>
@@ -1371,9 +1454,12 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                   { id: 'alumni', icon: 'ti-school', label: '졸업 선배', color: 'var(--google)' },
                   { id: 'expenses', icon: 'ti-wallet', label: '재무 관리', color: 'var(--blue-l)' },
                 ].map(m => (
-                  <div className="hub-card" key={m.id} onClick={() => go(m.id)}>
+                  <div className="hub-card" key={m.id} onClick={() => go(m.id)} style={{ position: 'relative' }}>
                     <i className={`ti ${m.icon}`} style={{ color: m.color }}></i>
                     <span>{m.label}</span>
+                    {m.id === 'members' && isManager && pendingList.length > 0 && (
+                      <span style={{ position: 'absolute', top: 6, right: 6, minWidth: 18, height: 18, borderRadius: 9, background: 'var(--warn)', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>{pendingList.length}</span>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1395,11 +1481,31 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
             <div className="home-cal-left">
               <div className="card" style={{ marginTop: 0 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                  <h3 style={{ margin: 0 }}>다가오는 일정</h3>
-                  <span className="cap" style={{ cursor: 'pointer', color: 'var(--blue)' }} onClick={() => go('schedule')}>전체보기</span>
+                  <h3 style={{ margin: 0 }}>{homeCalSelected ? `${new Date().getMonth() + 1}월 ${homeCalSelected}일 일정` : '다가오는 일정'}</h3>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    {homeCalSelected && <span className="cap" style={{ cursor: 'pointer', color: 'var(--warn)' }} onClick={() => setHomeCalSelected(null)}>전체보기</span>}
+                    <span className="cap" style={{ cursor: 'pointer', color: 'var(--blue)' }} onClick={() => go('schedule')}>일정관리</span>
+                  </div>
                 </div>
                 {(() => {
                   const now = new Date();
+                  if (homeCalSelected) {
+                    const selDate = new Date(now.getFullYear(), now.getMonth(), homeCalSelected);
+                    const dayEvents = scheduleList.filter(s => {
+                      const sd = new Date(s.date);
+                      return sd.getFullYear() === selDate.getFullYear() && sd.getMonth() === selDate.getMonth() && sd.getDate() === selDate.getDate();
+                    }).sort((a, b) => new Date(a.date) - new Date(b.date));
+                    if (dayEvents.length === 0) {
+                      return <div className="cap" style={{ padding: '12px 0' }}>해당 날짜에 일정이 없습니다.</div>;
+                    }
+                    return dayEvents.map(s => (
+                      <div className="sch-i" key={s.id}>
+                        <div className="sch-dot" style={{ background: s.color }}></div>
+                        <div className="sch-t">{s.title}</div>
+                        <div className="sch-d">{formatScheduleDate(s.date)}</div>
+                      </div>
+                    ));
+                  }
                   const upcoming = scheduleList.filter(s => new Date(s.date) >= now).sort((a, b) => new Date(a.date) - new Date(b.date)).slice(0, 5);
                   if (upcoming.length === 0) {
                     return (
@@ -1463,7 +1569,9 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                                 const inMonth = dd >= 1 && dd <= daysInMonth;
                                 const hasEvent = inMonth && scheduleDates.has(`${calYear}-${calMonth}-${dd}`);
                                 return (
-                                  <td key={di} className={`${!inMonth ? 'out' : ''} ${isToday ? 'today' : ''} ${di === 0 ? 'sun' : ''}`}>
+                                  <td key={di} className={`${!inMonth ? 'out' : ''} ${isToday ? 'today' : ''} ${homeCalSelected === dd && inMonth ? 'selected' : ''} ${di === 0 ? 'sun' : ''}`}
+                                    onClick={() => { if (inMonth) setHomeCalSelected(homeCalSelected === dd ? null : dd); }}
+                                    style={inMonth ? { cursor: 'pointer' } : undefined}>
                                     {inMonth ? dd : ''}
                                     {hasEvent && <span className="cal-dot"></span>}
                                   </td>
@@ -1492,7 +1600,7 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
           <div className="stripe"></div>
 
           <div className="search-bar">
-            <div className="search-wrap">
+            <div className="search-wrap" style={{ flex: 1 }}>
               <i className="ti ti-search"></i>
               <input
                 className="inp"
@@ -1501,15 +1609,54 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                 onChange={e => setSearchQuery(e.target.value)}
               />
             </div>
-            <button className="btn btn-fill btn-sm" onClick={() => { go('input'); setTab('mem'); }}>
-              <i className="ti ti-plus" style={{ fontSize: 14 }}></i>
-            </button>
           </div>
 
           <div className="member-count-bar">
             <div className="member-count">전체 <strong>{membersList.length}</strong>명</div>
             {searchQuery && <div className="cap">검색 결과</div>}
           </div>
+
+          {isManager && pendingList.length > 0 && (
+            <div className="card" style={{ padding: '12px 16px', marginBottom: 12, border: '1px solid var(--blue)', background: 'rgba(28,105,212,0.05)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <i className="ti ti-user-plus" style={{ fontSize: 18, color: 'var(--blue)' }}></i>
+                <h3 style={{ margin: 0, fontSize: 14 }}>가입 대기 <span className="badge badge-blue" style={{ fontSize: 10, padding: '1px 6px', verticalAlign: 1 }}>{pendingList.length}</span></h3>
+              </div>
+              {pendingList.map(p => (
+                <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderTop: '1px solid var(--hair)' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600 }}>{p.name}</div>
+                    <div className="cap">{p.department}{p.studentId ? ` · ${p.studentId}` : ''}{p.phone ? ` · ${p.phone}` : ''}</div>
+                    <div className="cap" style={{ fontSize: 10 }}>요청일: {new Date(p.requestedAt).toLocaleDateString('ko-KR')}</div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                    <button className="btn btn-fill btn-sm" style={{ height: 30, fontSize: 11, background: 'var(--ok)', borderColor: 'var(--ok)' }} onClick={() => {
+                      const approved = approvePending(p.id);
+                      if (approved) {
+                        const users = JSON.parse(localStorage.getItem('dongmu_users') || '[]');
+                        const target = users.find(u => u.email === approved.email);
+                        if (target) {
+                          setUserClub(target.id, approved.clubId);
+                        }
+                        autoRegisterMember({ name: approved.name, email: approved.email, studentId: approved.studentId, department: approved.department, phone: approved.phone }, approved.clubId, '부원');
+                        showToast(`${approved.name}님의 가입을 승인했습니다.`);
+                        refreshData();
+                      }
+                    }}>
+                      <i className="ti ti-check" style={{ fontSize: 13 }}></i> 승인
+                    </button>
+                    <button className="btn btn-ghost btn-sm" style={{ height: 30, fontSize: 11, color: 'var(--warn)', borderColor: 'var(--warn)' }} onClick={() => {
+                      rejectPending(p.id);
+                      showToast(`${p.name}님의 가입을 거절했습니다.`);
+                      refreshData();
+                    }}>
+                      <i className="ti ti-x" style={{ fontSize: 13 }}></i> 거절
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="card" style={{ padding: '4px 16px' }}>
             {membersList.length === 0 ? (
@@ -1560,11 +1707,13 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                           </div>
                         </div>
                       )}
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
-                        <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(m); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 14px', fontSize: 12, color: 'var(--warn)', background: 'none', border: '1px solid var(--warn)', borderRadius: 8, cursor: 'pointer' }}>
-                          <i className="ti ti-trash"></i>삭제
-                        </button>
-                      </div>
+                      {isManager && (
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                          <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(m); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 14px', fontSize: 12, color: 'var(--warn)', background: 'none', border: '1px solid var(--warn)', borderRadius: 8, cursor: 'pointer' }}>
+                            <i className="ti ti-trash"></i>강제 탈퇴
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -2880,7 +3029,7 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
 
               <div className="card" style={{ padding: '0 16px', marginTop: 8 }}>
                 <div className="menu-i" onClick={() => go('my-notify')}><div className="menu-l"><i className="ti ti-bell"></i> 알림 설정</div><i className="ti ti-chevron-right menu-r"></i></div>
-                <div className="menu-i" onClick={() => { setEditName(user.name); setEditPhone(user.phone); setEditDept(user.department); go('my-privacy'); }}><div className="menu-l"><i className="ti ti-lock"></i> 개인정보 관리</div><i className="ti ti-chevron-right menu-r"></i></div>
+                <div className="menu-i" onClick={() => { setEditName(user.name); setEditPhone(user.phone); setEditDept(user.department); setEditSchool(user.school || ''); setEditStudentId(user.studentId || ''); setEditEmail(user.email || ''); setEditCurPw(''); setEditNewPw(''); setEditNewPwConfirm(''); go('my-privacy'); }}><div className="menu-l"><i className="ti ti-lock"></i> 개인정보 관리</div><i className="ti ti-chevron-right menu-r"></i></div>
                 <div className="menu-i" onClick={handleLogout}>
                   <div className="menu-l"><i className="ti ti-logout" style={{ color: 'var(--warn)' }}></i> <span style={{ color: 'var(--warn)' }}>로그아웃</span></div>
                   <i className="ti ti-chevron-right menu-r"></i>
@@ -3046,16 +3195,42 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
           <div className="stripe"></div>
           {user && (
             <div className="card" style={{ padding: '16px', marginBottom: 12 }}>
+              <h3 style={{ marginBottom: 12 }}>기본 정보 수정</h3>
               <div className="inp-g"><label className="inp-l">이름</label><input className="inp" value={editName} onChange={e => setEditName(e.target.value)} /></div>
-              <div className="inp-g"><label className="inp-l">전화번호</label><input className="inp" value={editPhone} onChange={e => setEditPhone(formatPhone(e.target.value))} /></div>
+              <div className="inp-g"><label className="inp-l">학교</label><input className="inp" value={editSchool} onChange={e => setEditSchool(e.target.value)} /></div>
               <div className="inp-g"><label className="inp-l">학과</label><input className="inp" value={editDept} onChange={e => setEditDept(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">학번</label><input className="inp" value={editStudentId} onChange={e => setEditStudentId(formatStudentId(e.target.value))} /></div>
+              <div className="inp-g"><label className="inp-l">전화번호</label><input className="inp" value={editPhone} onChange={e => setEditPhone(formatPhone(e.target.value))} /></div>
+              <div className="inp-g"><label className="inp-l">이메일</label><input className="inp" type="email" value={editEmail} onChange={e => setEditEmail(e.target.value)} /></div>
               <button className="btn btn-fill" style={{ marginTop: 8 }} onClick={() => {
                 if (!editName.trim()) { showToast('이름을 입력해주세요'); return; }
-                updateProfile({ name: editName.trim(), phone: editPhone, department: editDept.trim() });
-                setUser({ ...user, name: editName.trim(), phone: editPhone, department: editDept.trim() });
+                const updates = { name: editName.trim(), phone: editPhone, department: editDept.trim(), school: editSchool.trim(), studentId: editStudentId.trim(), email: editEmail.trim() };
+                updateProfile(updates);
+                setUser({ ...user, ...updates });
+                const me = membersList.find(m => m.email === user.email || m.studentId === user.studentId);
+                if (me) {
+                  updateMember(me.id, { name: updates.name, phone: updates.phone, department: updates.department, email: updates.email, studentId: updates.studentId });
+                }
                 showToast('개인정보가 수정되었습니다');
                 refreshData();
               }}>저장</button>
+            </div>
+          )}
+          {user && (
+            <div className="card" style={{ padding: '16px', marginBottom: 12 }}>
+              <h3 style={{ marginBottom: 12 }}>비밀번호 변경</h3>
+              <div className="inp-g"><label className="inp-l">현재 비밀번호</label><input className="inp" type="password" value={editCurPw} onChange={e => setEditCurPw(e.target.value)} placeholder="현재 비밀번호 입력" /></div>
+              <div className="inp-g"><label className="inp-l">새 비밀번호</label><input className="inp" type="password" value={editNewPw} onChange={e => setEditNewPw(e.target.value)} placeholder="6자 이상 입력" /></div>
+              <div className="inp-g"><label className="inp-l">새 비밀번호 확인</label><input className="inp" type="password" value={editNewPwConfirm} onChange={e => setEditNewPwConfirm(e.target.value)} placeholder="새 비밀번호 다시 입력" /></div>
+              <button className="btn btn-fill" style={{ marginTop: 8 }} onClick={async () => {
+                if (!editCurPw) { showToast('현재 비밀번호를 입력해주세요'); return; }
+                if (!validators.password(editNewPw)) { showToast('새 비밀번호는 6자 이상이어야 합니다'); return; }
+                if (editNewPw !== editNewPwConfirm) { showToast('새 비밀번호가 일치하지 않습니다'); return; }
+                const result = await changePassword(editCurPw, editNewPw);
+                if (!result.success) { showToast(result.error); return; }
+                showToast('비밀번호가 변경되었습니다');
+                setEditCurPw(''); setEditNewPw(''); setEditNewPwConfirm('');
+              }}>비밀번호 변경</button>
             </div>
           )}
           <div className="card" style={{ padding: '16px' }}>
@@ -3088,11 +3263,11 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
       {confirmDelete && (
         <div className="confirm-overlay">
           <div className="confirm-box">
-            <h3>부원 삭제</h3>
-            <div className="cap">{confirmDelete.name}({confirmDelete.studentId}) 부원을 삭제하시겠습니까?<br/>이 작업은 되돌릴 수 없습니다.</div>
+            <h3>부원 강제 탈퇴</h3>
+            <div className="cap">{confirmDelete.name}({confirmDelete.studentId}) 부원을 강제 탈퇴시키겠습니까?<br/>탈퇴된 부원은 다시 이 동아리에 가입할 수 없습니다.</div>
             <div className="confirm-btns">
               <button className="btn btn-ghost" onClick={() => setConfirmDelete(null)}>취소</button>
-              <button className="btn btn-fill" style={{ background: 'var(--warn)', borderColor: 'var(--warn)' }} onClick={() => handleDeleteMember(confirmDelete.id)}>삭제</button>
+              <button className="btn btn-fill" style={{ background: 'var(--warn)', borderColor: 'var(--warn)' }} onClick={() => handleDeleteMember(confirmDelete.id)}>강제 탈퇴</button>
             </div>
           </div>
         </div>

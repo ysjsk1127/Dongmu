@@ -271,6 +271,8 @@ select.inp { appearance: none; background-image: url("data:image/svg+xml,%3Csvg 
 .mini-cal td.out { color: transparent; }
 .mini-cal td.sun { color: var(--warn); }
 .mini-cal td.today { color: var(--blue); font-weight: 800; background: rgba(77,142,247,.12); border-radius: 8px; }
+.mini-cal td.selected { color: #fff !important; background: var(--blue) !important; border-radius: 8px; }
+.mini-cal td.selected .cal-dot { background: #fff !important; }
 .cal-dot { position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%); width: 4px; height: 4px; border-radius: 50%; background: var(--ok); }
 
 /* ====== NAV BRAND (desktop only) ====== */
