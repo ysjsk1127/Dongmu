@@ -1670,7 +1670,7 @@ export default function Home() {
                   </div>
                   <div className="inp-g" style={{ marginBottom: 0 }}>
                     <label className="inp-l">업로드 날짜</label>
-                    <input type="date" className="inp" value={docSearchDate} onChange={e => setDocSearchDate(e.target.value)} />
+                    <input type="date" className="inp" value={docSearchDate} onChange={e => setDocSearchDate(e.target.value)} onClick={e => e.target.showPicker && e.target.showPicker()} />
                   </div>
                 </div>
                 {(docSearchQuery || docSearchFolder !== '전체' || docSearchDate) && (
@@ -1944,7 +1944,7 @@ export default function Home() {
               <div className="inp-g"><label className="inp-l">{finType === 'income' ? '수입 항목' : '지출 항목'}</label><select className="inp" value={fCat} onChange={e => setFCat(e.target.value)}><option value="">선택</option>{(finType === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map(c => <option key={c}>{c}</option>)}</select></div>
               <div className="inp-g"><label className="inp-l">금액</label><input className="inp" placeholder="₩ 0" value={fAmt} onChange={e => setFAmt(e.target.value)} /></div>
               <div className="inp-g"><label className="inp-l">{finType === 'income' ? '수입처' : '지출처'}</label><input className="inp" placeholder={finType === 'income' ? '예: 학생회, 후원기업' : '예: 다이소, 쿠팡'} value={fSource} onChange={e => setFSource(e.target.value)} /></div>
-              <div className="inp-g"><label className="inp-l">발생일</label><input type="date" className="inp" value={fDate} onChange={e => setFDate(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">발생일</label><input type="date" className="inp" value={fDate} onChange={e => setFDate(e.target.value)} onClick={e => e.target.showPicker && e.target.showPicker()} /></div>
               <div className="inp-g"><label className="inp-l">메모</label><input className="inp" placeholder="간단한 설명" value={fMemo} onChange={e => setFMemo(e.target.value)} /></div>
               <div className="inp-g">
                 <label className="inp-l">증빙 자료</label>
@@ -2027,7 +2027,7 @@ export default function Home() {
               <div className="inp-g"><label className="inp-l">{finType === 'income' ? '수입 항목' : '지출 항목'}</label><select className="inp" value={fCat} onChange={e => setFCat(e.target.value)}><option value="">선택</option>{(finType === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map(c => <option key={c}>{c}</option>)}</select></div>
               <div className="inp-g"><label className="inp-l">금액</label><input className="inp" placeholder="₩ 0" value={fAmt} onChange={e => setFAmt(e.target.value)} /></div>
               <div className="inp-g"><label className="inp-l">{finType === 'income' ? '수입처' : '지출처'}</label><input className="inp" placeholder={finType === 'income' ? '예: 학생회, 후원기업' : '예: 다이소, 쿠팡'} value={fSource} onChange={e => setFSource(e.target.value)} /></div>
-              <div className="inp-g"><label className="inp-l">발생일</label><input type="date" className="inp" value={fDate} onChange={e => setFDate(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">발생일</label><input type="date" className="inp" value={fDate} onChange={e => setFDate(e.target.value)} onClick={e => e.target.showPicker && e.target.showPicker()} /></div>
               <div className="inp-g"><label className="inp-l">메모</label><input className="inp" placeholder="간단한 설명" value={fMemo} onChange={e => setFMemo(e.target.value)} /></div>
               <div className="inp-g">
                 <label className="inp-l">증빙 자료</label>
