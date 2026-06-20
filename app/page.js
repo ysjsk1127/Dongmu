@@ -688,6 +688,31 @@ export default function Home() {
     showToast('인수인계 패키지 생성 완료');
   }
 
+  function downloadPkg() {
+    const clubId = user ? user.clubId : null;
+    const pkg = {
+      exportedAt: new Date().toISOString(),
+      clubName: activeClub ? activeClub.name : 'HELIOS',
+      exportedBy: user ? user.name : '',
+      members: getMembers(clubId),
+      schedules: getSchedules(clubId),
+      documents: getDocuments(clubId).map(d => ({ ...d, fileData: undefined })),
+      sponsors: getSponsors(clubId),
+      alumni: getAlumni(clubId),
+      expenses: getExpenses(clubId).map(e => ({ ...e, receiptFile: undefined })),
+    };
+    const blob = new Blob([JSON.stringify(pkg, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `인수인계_${pkg.clubName}_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('인수인계 파일이 다운로드되었습니다');
+  }
+
   /* ───── Password strength ───── */
   function getPwStrength(pw) {
     if (!pw) return { width: '0%', color: 'transparent', label: '' };
@@ -2175,7 +2200,9 @@ export default function Home() {
                   </div>
                 ))}
               </div>
-              <button className="btn btn-ok">후임자에게 전달</button>
+              <button className="btn btn-ok" onClick={downloadPkg}>
+                <i className="ti ti-download" style={{ fontSize: 18 }}></i> 인수인계 파일 다운로드
+              </button>
             </div>
           )}
         </div>
