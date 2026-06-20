@@ -1602,10 +1602,10 @@ export default function Home() {
               </div>
 
               <h3>폴더</h3>
-              <div className="folder-grid">
-                <div className={`folder-chip ${docFilter === '전체' ? 'on' : ''}`} onClick={() => setDocFilter('전체')}>
-                  <i className="ti ti-folders"></i><span>전체</span><strong>{docC}</strong>
-                </div>
+              <div className={`folder-chip folder-chip-full ${docFilter === '전체' ? 'on' : ''}`} onClick={() => setDocFilter('전체')}>
+                <i className="ti ti-folders"></i><span>전체</span><strong>{docC}</strong>
+              </div>
+              <div className="folder-grid" style={{ marginTop: 8 }}>
                 {docStats.map(cat => (
                   <div className={`folder-chip ${docFilter === cat.key ? 'on' : ''}`} key={cat.key} onClick={() => setDocFilter(cat.key)}>
                     <i className={`ti ${cat.icon}`} style={{ color: cat.color }}></i><span>{cat.key}</span><strong>{cat.count}</strong>

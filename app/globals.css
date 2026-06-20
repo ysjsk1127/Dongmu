@@ -241,6 +241,7 @@ select.inp { appearance: none; background-image: url("data:image/svg+xml,%3Csvg 
 .folder-chip i { font-size: 18px; }
 .folder-chip span { font-size: 13px; font-weight: 600; color: var(--body); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .folder-chip strong { font-size: 14px; font-weight: 700; color: var(--ink); }
+.folder-chip-full { width: 100%; }
 
 /* ====== BACK BUTTON ====== */
 .back-btn { background: var(--soft); border: 1px solid var(--hair); border-radius: var(--r-xs); color: var(--ink); cursor: pointer; padding: 6px 8px; display: flex; align-items: center; justify-content: center; transition: all .2s; }
