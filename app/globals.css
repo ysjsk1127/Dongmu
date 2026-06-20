@@ -419,6 +419,6 @@ select.inp { appearance: none; background-image: url("data:image/svg+xml,%3Csvg 
 @media (min-width: 1400px) {
   .scr { max-width: 1320px; }
   .home-layout { grid-template-columns: 1.5fr 1fr; gap: 36px; }
-  .home-layout .grid2 { grid-template-columns: repeat(4, 1fr); }
+  .home-layout .grid2 { grid-template-columns: repeat(2, 1fr); }
   .hub-grid { grid-template-columns: repeat(3, 1fr); }
 }
