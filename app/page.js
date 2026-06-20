@@ -789,10 +789,10 @@ export default function Home() {
   h2{font-size:20px;margin:32px 0 12px;padding-bottom:8px;border-bottom:2px solid #4d8ef7;color:#4d8ef7}
   h3{font-size:15px;margin:16px 0 8px;color:#555}
   .meta{color:#888;font-size:13px;margin-bottom:24px}
-  .summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:16px 0 24px}
+  .summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:16px 0 24px}
   .summary-box{background:#f8f9fc;border:1px solid #e5e7eb;border-radius:10px;padding:16px;text-align:center}
   .summary-box .label{font-size:12px;color:#888;margin-bottom:4px}
-  .summary-box .value{font-size:clamp(16px,3vw,24px);font-weight:800;color:#222;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .summary-box .value{font-size:clamp(16px,3vw,24px);font-weight:800;color:#222;white-space:nowrap}
   .summary-box .value.green{color:#22c55e}
   .summary-box .value.red{color:#f59e0b}
   .summary-box .value.blue{color:#4d8ef7}
@@ -827,7 +827,7 @@ export default function Home() {
   <div class="summary-box"><div class="label">잔액</div><div class="value ${balance >= 0 ? 'green' : 'red'}">${balance >= 0 ? '+' : ''}${formatExpAmount(balance)}원</div></div>
   <div class="summary-box"><div class="label">등록 일정</div><div class="value">${schedules.length}건</div></div>
   <div class="summary-box"><div class="label">보관 자료</div><div class="value">${documents.length}건</div></div>
-  <div class="summary-box"><div class="label">누적 후원금</div><div class="value green">₩${formatAmount(sponsors.reduce((s, sp) => s + (sp.amount || 0), 0))}</div></div>
+  <div class="summary-box"><div class="label">누적 후원금</div><div class="value green">${formatAmount(sponsors.reduce((s, sp) => s + (sp.amount || 0), 0))}원</div></div>
   <div class="summary-box"><div class="label">졸업 선배</div><div class="value">${alumni.length}명</div></div>
 </div>
 
