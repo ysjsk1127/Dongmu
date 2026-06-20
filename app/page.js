@@ -179,6 +179,15 @@ export default function Home() {
   const [notifyFinance, setNotifyFinance] = useState(true);
   const [notifyMember, setNotifyMember] = useState(false);
 
+  /* ── 실제 알림 ── */
+  const [alertList, setAlertList] = useState([]);
+  const [readAlertIds, setReadAlertIds] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try { return JSON.parse(localStorage.getItem('dongmu_read_alerts') || '[]'); } catch { return []; }
+    }
+    return [];
+  });
+
   /* ── 개인정보 수정 ── */
   const [editName, setEditName] = useState('');
   const [editPhone, setEditPhone] = useState('');
@@ -223,6 +232,39 @@ export default function Home() {
     setExpBalance(getBalance(clubId));
     setExpMonthly(getMonthlyExpense(clubId));
     setExpByCategory(getExpensesByCategory(clubId));
+
+    // 실제 알림 생성
+    const alerts = [];
+    const now = new Date();
+    // 다가오는 일정 알림 (3일 이내)
+    getSchedules(clubId).forEach(s => {
+      const d = new Date(s.date);
+      const diff = Math.ceil((d - now) / (1000 * 60 * 60 * 24));
+      if (diff >= 0 && diff <= 3) {
+        alerts.push({ id: `sch-${s.id}`, type: 'schedule', icon: 'ti-calendar', color: 'var(--ok)', title: diff === 0 ? `오늘 일정: ${s.title}` : `D-${diff} 일정: ${s.title}`, desc: formatScheduleDate(s.date), time: s.date });
+      }
+    });
+    // 최근 재무 알림 (7일 이내 등록)
+    getExpenses(clubId).forEach(e => {
+      const d = new Date(e.date);
+      const diff = Math.ceil((now - d) / (1000 * 60 * 60 * 24));
+      if (diff >= 0 && diff <= 7) {
+        const isIncome = e.type === 'income';
+        alerts.push({ id: `exp-${e.id}`, type: 'finance', icon: isIncome ? 'ti-arrow-down-left' : 'ti-arrow-up-right', color: isIncome ? 'var(--ok)' : 'var(--warn)', title: `${isIncome ? '수입' : '지출'}: ${e.description}`, desc: `${formatExpAmount(e.amount)}원`, time: e.date });
+      }
+    });
+    // 최근 부원 알림 (7일 이내 가입)
+    getMembers(clubId).forEach(m => {
+      if (m.joinDate) {
+        const d = new Date(m.joinDate);
+        const diff = Math.ceil((now - d) / (1000 * 60 * 60 * 24));
+        if (diff >= 0 && diff <= 7) {
+          alerts.push({ id: `mem-${m.id}`, type: 'member', icon: 'ti-user-plus', color: 'var(--blue)', title: `새 부원: ${m.name}`, desc: m.department || '', time: m.joinDate });
+        }
+      }
+    });
+    alerts.sort((a, b) => new Date(b.time) - new Date(a.time));
+    setAlertList(alerts);
   }, [searchQuery]);
 
   useEffect(() => {
@@ -655,7 +697,7 @@ export default function Home() {
   }
 
   /* ───── Nav state ───── */
-  const navMap = { home: 'home', input: 'input', report: 'report', my: 'my', drive: 'home', members: 'home', schedule: 'home', sponsors: 'home', alumni: 'home', 'my-activity': 'my', 'my-receipts': 'my', 'my-notify': 'my', 'my-privacy': 'my' };
+  const navMap = { home: 'home', input: 'input', report: 'report', my: 'my', drive: 'home', members: 'home', schedule: 'home', sponsors: 'home', alumni: 'home', 'my-activity': 'my', 'my-receipts': 'my', 'my-notify': 'my', 'my-privacy': 'my', 'my-alerts': 'home' };
   const activeNav = navMap[screen] || screen;
   const showNav = !['onboard', 'login', 'signup', 'club-select'].includes(screen);
 
@@ -1046,9 +1088,9 @@ export default function Home() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
             <h1>{activeClub ? activeClub.name : 'HELIOS'}</h1>
 
-            <div style={{ position: 'relative', cursor: 'pointer' }} onClick={() => go('my-notify')}>
+            <div style={{ position: 'relative', cursor: 'pointer' }} onClick={() => { go('my-alerts'); }}>
               <i className="ti ti-bell" style={{ fontSize: 24, color: 'var(--muted)' }}></i>
-              {(notifySchedule || notifyFinance || notifyMember) && <span style={{ position: 'absolute', top: -2, right: -2, width: 8, height: 8, borderRadius: 4, background: 'var(--warn)', border: '2px solid var(--canvas)' }}></span>}
+              {alertList.filter(a => !readAlertIds.includes(a.id)).length > 0 && <span style={{ position: 'absolute', top: -2, right: -2, width: 8, height: 8, borderRadius: 4, background: 'var(--warn)', border: '2px solid var(--canvas)' }}></span>}
             </div>
           </div>
           <div className="stripe"></div>
@@ -2243,6 +2285,63 @@ export default function Home() {
               ));
             })()}
           </div>
+        </div>
+
+        {/* ════════ 알림 목록 ════════ */}
+        <div className={`scr ${screen === 'my-alerts' ? 'on' : ''}`}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+            <button style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: 0 }} onClick={() => go('home')}><i className="ti ti-arrow-left" style={{ fontSize: 22 }}></i></button>
+            <h2 style={{ margin: 0 }}>알림</h2>
+            <div style={{ flex: 1 }}></div>
+            {alertList.length > 0 && alertList.some(a => !readAlertIds.includes(a.id)) && (
+              <button className="btn btn-sm" style={{ fontSize: 11, padding: '4px 10px', height: 'auto' }} onClick={() => {
+                const allIds = alertList.map(a => a.id);
+                setReadAlertIds(allIds);
+                localStorage.setItem('dongmu_read_alerts', JSON.stringify(allIds));
+                showToast('모두 읽음 처리됨');
+              }}>모두 읽음</button>
+            )}
+          </div>
+          <div className="stripe"></div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+            <span className="cap" style={{ cursor: 'pointer', color: 'var(--blue)' }} onClick={() => go('my-notify')}>
+              <i className="ti ti-settings" style={{ fontSize: 13, verticalAlign: -1 }}></i> 알림 설정
+            </span>
+          </div>
+
+          {alertList.length === 0 ? (
+            <div className="card" style={{ textAlign: 'center', padding: '40px 16px' }}>
+              <i className="ti ti-bell-off" style={{ fontSize: 40, color: 'var(--muted)', marginBottom: 8, display: 'block' }}></i>
+              <div className="cap">새로운 알림이 없습니다</div>
+            </div>
+          ) : (
+            <div className="card" style={{ padding: '0 16px' }}>
+              {alertList.map(a => {
+                const isRead = readAlertIds.includes(a.id);
+                return (
+                  <div key={a.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 0', borderBottom: '1px solid var(--hair)', opacity: isRead ? 0.5 : 1 }}
+                    onClick={() => {
+                      if (!isRead) {
+                        const next = [...readAlertIds, a.id];
+                        setReadAlertIds(next);
+                        localStorage.setItem('dongmu_read_alerts', JSON.stringify(next));
+                      }
+                    }}
+                  >
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--elevated)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <i className={`ti ${a.icon}`} style={{ fontSize: 18, color: a.color }}></i>
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: isRead ? 400 : 600, marginBottom: 2 }}>{a.title}</div>
+                      <div className="cap">{a.desc}</div>
+                    </div>
+                    {!isRead && <span style={{ width: 8, height: 8, borderRadius: 4, background: 'var(--blue)', flexShrink: 0, marginTop: 6 }}></span>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* ════════ MY - 알림 설정 ════════ */}
