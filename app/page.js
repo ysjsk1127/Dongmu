@@ -1534,8 +1534,8 @@ export default function Home() {
                             </div>
                           )}
                           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
-                            <button className="member-del" onClick={(e) => { e.stopPropagation(); setConfirmDel2({ type: 'schedule', id: s.id, name: s.title }); }} style={{ fontSize: 12, color: 'var(--warn)' }}>
-                              <i className="ti ti-trash" style={{ marginRight: 4 }}></i>삭제
+                            <button onClick={(e) => { e.stopPropagation(); setConfirmDel2({ type: 'schedule', id: s.id, name: s.title }); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 14px', fontSize: 12, color: 'var(--warn)', background: 'none', border: '1px solid var(--warn)', borderRadius: 8, cursor: 'pointer' }}>
+                              <i className="ti ti-trash"></i>삭제
                             </button>
                           </div>
                         </div>
@@ -1792,7 +1792,7 @@ export default function Home() {
                         {s.contact && <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>연락처</span><div>{s.contact}</div></div>}
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
-                        <button className="member-del" onClick={(e) => { e.stopPropagation(); setConfirmDel2({ type: 'sponsor', id: s.id, name: s.name }); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 14px', fontSize: 12, color: 'var(--warn)', background: 'none', border: '1px solid var(--warn)', borderRadius: 8, cursor: 'pointer' }}>
+                        <button onClick={(e) => { e.stopPropagation(); setConfirmDel2({ type: 'sponsor', id: s.id, name: s.name }); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 14px', fontSize: 12, color: 'var(--warn)', background: 'none', border: '1px solid var(--warn)', borderRadius: 8, cursor: 'pointer' }}>
                           <i className="ti ti-trash"></i>삭제
                         </button>
                       </div>
