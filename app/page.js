@@ -760,17 +760,17 @@ export default function Home() {
     const barSvg = (data, color) => {
       if (data.length === 0) return '';
       const maxV = Math.max(...data.map(d => d.v), 1);
-      const bw = Math.min(40, Math.floor(600 / data.length));
-      const h = 100;
-      return `<svg viewBox="0 0 ${data.length * (bw + 8) + 20} ${h + 30}" style="width:100%;max-width:700px;height:auto;margin:12px 0">
+      const bw = Math.min(30, Math.floor(400 / data.length));
+      const h = 60;
+      return `<svg viewBox="0 0 ${data.length * (bw + 6) + 16} ${h + 24}" style="width:100%;max-width:500px;height:auto;max-height:100px;margin:8px 0">
         ${data.map((d, i) => {
-          const bh = Math.max((d.v / maxV) * h, d.v > 0 ? 4 : 0);
-          const x = i * (bw + 8) + 10;
-          return `<rect x="${x}" y="${h - bh}" width="${bw}" height="${bh}" rx="3" fill="${color}" opacity="0.8"/>
-            <text x="${x + bw/2}" y="${h - bh - 4}" text-anchor="middle" fill="#333" font-size="9" font-weight="700">${d.l}</text>
-            <text x="${x + bw/2}" y="${h + 14}" text-anchor="middle" fill="#999" font-size="9">${d.k}</text>`;
+          const bh = Math.max((d.v / maxV) * h, d.v > 0 ? 3 : 0);
+          const x = i * (bw + 6) + 8;
+          return `<rect x="${x}" y="${h - bh}" width="${bw}" height="${bh}" rx="2" fill="${color}" opacity="0.8"/>
+            <text x="${x + bw/2}" y="${h - bh - 3}" text-anchor="middle" fill="#333" font-size="8" font-weight="700">${d.l}</text>
+            <text x="${x + bw/2}" y="${h + 12}" text-anchor="middle" fill="#999" font-size="8">${d.k}</text>`;
         }).join('')}
-        <line x1="0" y1="${h}" x2="${data.length * (bw + 8) + 20}" y2="${h}" stroke="#ddd" stroke-width="1"/>
+        <line x1="0" y1="${h}" x2="${data.length * (bw + 6) + 16}" y2="${h}" stroke="#ddd" stroke-width="1"/>
       </svg>`;
     };
 
@@ -792,7 +792,7 @@ export default function Home() {
   .summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:16px 0 24px}
   .summary-box{background:#f8f9fc;border:1px solid #e5e7eb;border-radius:10px;padding:16px;text-align:center}
   .summary-box .label{font-size:12px;color:#888;margin-bottom:4px}
-  .summary-box .value{font-size:24px;font-weight:800;color:#222}
+  .summary-box .value{font-size:clamp(16px,3vw,24px);font-weight:800;color:#222;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .summary-box .value.green{color:#22c55e}
   .summary-box .value.red{color:#f59e0b}
   .summary-box .value.blue{color:#4d8ef7}
