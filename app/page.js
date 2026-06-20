@@ -2455,20 +2455,26 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                   <div className="card">
                     <h3 style={{ marginBottom: 8 }}>기간별 상세</h3>
                     <div style={{ overflowX: 'auto' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14, tableLayout: 'fixed' }}>
+                        <colgroup>
+                          <col style={{ width: '28%' }} />
+                          <col style={{ width: '27%' }} />
+                          <col style={{ width: '27%' }} />
+                          <col style={{ width: '18%' }} />
+                        </colgroup>
                         <thead><tr style={{ borderBottom: '2px solid var(--hair)' }}>
-                          <th style={{ textAlign: 'left', padding: '6px 4px', fontWeight: 600 }}>기간</th>
-                          <th style={{ textAlign: 'right', padding: '6px 4px', fontWeight: 600, color: 'var(--ok)' }}>수입</th>
-                          <th style={{ textAlign: 'right', padding: '6px 4px', fontWeight: 600, color: 'var(--warn)' }}>지출</th>
-                          <th style={{ textAlign: 'right', padding: '6px 4px', fontWeight: 600 }}>건수</th>
+                          <th style={{ textAlign: 'left', padding: '8px 6px', fontWeight: 600 }}>기간</th>
+                          <th style={{ textAlign: 'right', padding: '8px 6px', fontWeight: 600, color: 'var(--ok)' }}>수입</th>
+                          <th style={{ textAlign: 'right', padding: '8px 6px', fontWeight: 600, color: 'var(--warn)' }}>지출</th>
+                          <th style={{ textAlign: 'right', padding: '8px 6px', fontWeight: 600 }}>건수</th>
                         </tr></thead>
                         <tbody>
                           {[...lastN].reverse().map(k => (
                             <tr key={k} style={{ borderBottom: '1px solid var(--hair)' }}>
-                              <td style={{ padding: '8px 4px' }}>{k}</td>
-                              <td style={{ textAlign: 'right', padding: '8px 4px', color: 'var(--ok)' }}>{formatExpAmount(grouped[k].income)}</td>
-                              <td style={{ textAlign: 'right', padding: '8px 4px', color: 'var(--warn)' }}>{formatExpAmount(grouped[k].expense)}</td>
-                              <td style={{ textAlign: 'right', padding: '8px 4px' }}>{grouped[k].count}건</td>
+                              <td style={{ padding: '8px 6px' }}>{k}</td>
+                              <td style={{ textAlign: 'right', padding: '8px 6px', color: 'var(--ok)' }}>{formatExpAmount(grouped[k].income)}</td>
+                              <td style={{ textAlign: 'right', padding: '8px 6px', color: 'var(--warn)' }}>{formatExpAmount(grouped[k].expense)}</td>
+                              <td style={{ textAlign: 'right', padding: '8px 6px' }}>{grouped[k].count}건</td>
                             </tr>
                           ))}
                         </tbody>
