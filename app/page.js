@@ -709,6 +709,76 @@ export default function Home() {
     const thStyle = 'text-align:left;padding:10px 12px;background:#f0f4ff;border:1px solid #ddd;font-size:13px;font-weight:600;';
     const tdStyle = 'padding:10px 12px;border:1px solid #ddd;font-size:13px;';
 
+    const monthlyExp = {};
+    expenses.forEach(e => {
+      const d = new Date(e.occurredAt || e.createdAt);
+      const key = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}`;
+      if (!monthlyExp[key]) monthlyExp[key] = { income: 0, expense: 0, count: 0 };
+      if (e.type === 'income') monthlyExp[key].income += (e.amount || 0);
+      else monthlyExp[key].expense += (e.amount || 0);
+      monthlyExp[key].count++;
+    });
+    const expMonths = Object.keys(monthlyExp).sort().slice(-12);
+
+    const monthlyMem = {};
+    members.forEach(m => {
+      const d = new Date(m.joinedAt || m.createdAt);
+      const key = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}`;
+      if (!monthlyMem[key]) monthlyMem[key] = [];
+      monthlyMem[key].push(m);
+    });
+    const memMonths = Object.keys(monthlyMem).sort();
+
+    const roleCount = {};
+    members.forEach(m => { const r = m.role || '부원'; roleCount[r] = (roleCount[r] || 0) + 1; });
+
+    const monthlySch = {};
+    schedules.forEach(s => {
+      const d = new Date(s.date);
+      const key = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}`;
+      if (!monthlySch[key]) monthlySch[key] = [];
+      monthlySch[key].push(s);
+    });
+    const schMonths = Object.keys(monthlySch).sort();
+
+    const monthlySpon = {};
+    sponsors.forEach(s => {
+      const d = new Date(s.createdAt);
+      const key = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}`;
+      if (!monthlySpon[key]) monthlySpon[key] = { total: 0, items: [] };
+      monthlySpon[key].total += (s.amount || 0);
+      monthlySpon[key].items.push(s);
+    });
+    const sponMonths = Object.keys(monthlySpon).sort();
+
+    const catExp = {};
+    expenses.filter(e => e.type !== 'income').forEach(e => {
+      const c = e.category || '기타';
+      catExp[c] = (catExp[c] || 0) + (e.amount || 0);
+    });
+
+    const barSvg = (data, color) => {
+      if (data.length === 0) return '';
+      const maxV = Math.max(...data.map(d => d.v), 1);
+      const bw = Math.min(40, Math.floor(600 / data.length));
+      const h = 100;
+      return `<svg viewBox="0 0 ${data.length * (bw + 8) + 20} ${h + 30}" style="width:100%;max-width:700px;height:auto;margin:12px 0">
+        ${data.map((d, i) => {
+          const bh = Math.max((d.v / maxV) * h, d.v > 0 ? 4 : 0);
+          const x = i * (bw + 8) + 10;
+          return `<rect x="${x}" y="${h - bh}" width="${bw}" height="${bh}" rx="3" fill="${color}" opacity="0.8"/>
+            <text x="${x + bw/2}" y="${h - bh - 4}" text-anchor="middle" fill="#333" font-size="9" font-weight="700">${d.l}</text>
+            <text x="${x + bw/2}" y="${h + 14}" text-anchor="middle" fill="#999" font-size="9">${d.k}</text>`;
+        }).join('')}
+        <line x1="0" y1="${h}" x2="${data.length * (bw + 8) + 20}" y2="${h}" stroke="#ddd" stroke-width="1"/>
+      </svg>`;
+    };
+
+    const pctBar = (label, value, total, color) => {
+      const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+      return `<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px"><span>${label}</span><span style="font-weight:700">${pct}%</span></div><div style="height:8px;background:#f0f0f0;border-radius:4px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${color};border-radius:4px"></div></div></div>`;
+    };
+
     const html = `<!DOCTYPE html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>인수인계 보고서 - ${clubName}</title>
@@ -719,7 +789,7 @@ export default function Home() {
   h2{font-size:20px;margin:32px 0 12px;padding-bottom:8px;border-bottom:2px solid #4d8ef7;color:#4d8ef7}
   h3{font-size:15px;margin:16px 0 8px;color:#555}
   .meta{color:#888;font-size:13px;margin-bottom:24px}
-  .summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:16px 0 24px}
+  .summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:16px 0 24px}
   .summary-box{background:#f8f9fc;border:1px solid #e5e7eb;border-radius:10px;padding:16px;text-align:center}
   .summary-box .label{font-size:12px;color:#888;margin-bottom:4px}
   .summary-box .value{font-size:24px;font-weight:800;color:#222}
@@ -730,21 +800,25 @@ export default function Home() {
   th{text-align:left;padding:10px 12px;background:#f0f4ff;border:1px solid #ddd;font-size:13px;font-weight:600}
   td{padding:10px 12px;border:1px solid #ddd;font-size:13px}
   .note{background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:16px;margin:16px 0;font-size:13px;color:#92400e}
+  .tip{background:#f0f7ff;border:1px solid #bfdbfe;border-radius:8px;padding:16px;margin:16px 0;font-size:13px;color:#1e40af}
   .section-desc{font-size:13px;color:#666;margin-bottom:12px}
   .badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
   .badge-blue{background:#e0ecff;color:#2563eb}
   .badge-green{background:#dcfce7;color:#16a34a}
   .badge-orange{background:#fff7ed;color:#ea580c}
+  .trend-table{width:100%;border-collapse:collapse;margin:8px 0 16px}
+  .trend-table th{text-align:left;padding:8px 10px;background:#f8f9fc;border-bottom:2px solid #e5e7eb;font-size:12px}
+  .trend-table td{padding:8px 10px;border-bottom:1px solid #f0f0f0;font-size:13px}
   .footer{margin-top:48px;padding-top:16px;border-top:1px solid #ddd;text-align:center;font-size:12px;color:#aaa}
-  @media print{body{padding:20px}h2{break-before:auto}table{page-break-inside:auto}tr{page-break-inside:avoid}}
+  @media print{body{padding:20px}h2{break-before:auto}table{page-break-inside:auto}tr{page-break-inside:avoid}svg{max-height:80px!important}}
 </style></head><body>
 <h1>📋 ${clubName} 인수인계 보고서</h1>
 <div class="meta">작성일: ${today} · 작성자: ${user ? user.name : '-'}${startDate ? ' · 설립일: ' + startDate : ''}</div>
 
 <div class="note">
   <strong>📌 후임자에게</strong><br>
-  이 보고서는 동아리 운영에 필요한 모든 정보를 담고 있습니다. 각 섹션을 꼼꼼히 읽어주세요.<br>
-  상세 데이터는 동무 앱에 로그인하면 확인할 수 있습니다.
+  이 보고서는 동아리 운영의 현황과 추이를 분석한 종합 보고서입니다.<br>
+  상세 데이터와 실시간 현황은 동무 앱에 로그인하면 확인할 수 있습니다.
 </div>
 
 <h2>1. 운영 현황 요약</h2>
@@ -753,43 +827,80 @@ export default function Home() {
   <div class="summary-box"><div class="label">잔액</div><div class="value ${balance >= 0 ? 'green' : 'red'}">${balance >= 0 ? '+' : ''}${formatExpAmount(balance)}원</div></div>
   <div class="summary-box"><div class="label">등록 일정</div><div class="value">${schedules.length}건</div></div>
   <div class="summary-box"><div class="label">보관 자료</div><div class="value">${documents.length}건</div></div>
-  <div class="summary-box"><div class="label">후원 내역</div><div class="value green">${sponsors.length}건</div></div>
+  <div class="summary-box"><div class="label">누적 후원금</div><div class="value green">₩${formatAmount(sponsors.reduce((s, sp) => s + (sp.amount || 0), 0))}</div></div>
   <div class="summary-box"><div class="label">졸업 선배</div><div class="value">${alumni.length}명</div></div>
 </div>
 
-<h2>2. 부원 명단</h2>
-<p class="section-desc">현재 등록된 부원 ${members.length}명의 정보입니다. 역할과 연락처를 확인하세요.</p>
-${members.length > 0 ? `<table><tr><th>이름</th><th>역할</th><th>학번</th><th>학과</th><th>연락처</th><th>이메일</th></tr>
+<h2>2. 부원 현황 및 추이</h2>
+<p class="section-desc">현재 등록된 부원 ${members.length}명의 정보와 가입 추이입니다.</p>
+
+${memMonths.length > 0 ? `<h3>📊 월별 가입 추이</h3>
+${barSvg(memMonths.map(k => ({ k: k.slice(-2) + '월', v: monthlyMem[k].length, l: monthlyMem[k].length + '명' })), '#4d8ef7')}
+<table class="trend-table"><tr><th>기간</th><th>가입 인원</th><th>가입자</th></tr>
+${[...memMonths].reverse().map(k => `<tr><td>${k.replace('.', '년 ')}월</td><td><strong>${monthlyMem[k].length}명</strong></td><td>${monthlyMem[k].map(m => m.name).join(', ')}</td></tr>`).join('')}</table>` : ''}
+
+${Object.keys(roleCount).length > 0 ? `<h3>역할 분포</h3>
+${Object.entries(roleCount).sort((a,b) => b[1] - a[1]).map(([role, cnt]) => pctBar(`${role} (${cnt}명)`, cnt, members.length, '#4d8ef7')).join('')}` : ''}
+
+${members.length > 0 ? `<h3>전체 부원 명단</h3><table><tr><th>이름</th><th>역할</th><th>학번</th><th>학과</th><th>연락처</th><th>이메일</th></tr>
 ${members.map(m => `<tr><td><strong>${m.name}</strong></td><td><span class="badge badge-blue">${m.role || '부원'}</span></td><td>${m.studentId || '-'}</td><td>${m.department || '-'}</td><td>${m.phone || '-'}</td><td>${m.email || '-'}</td></tr>`).join('')}</table>` : '<p class="section-desc">등록된 부원이 없습니다.</p>'}
 
 <h3>⚠️ 주요 연락처 (임원진)</h3>
 ${(() => { const execs = members.filter(m => ['회장','부회장','총무','임원진'].includes(m.role)); return execs.length > 0 ? `<table><tr><th>역할</th><th>이름</th><th>연락처</th><th>이메일</th></tr>${execs.map(m => `<tr><td><strong>${m.role}</strong></td><td>${m.name}</td><td>${m.phone || '-'}</td><td>${m.email || '-'}</td></tr>`).join('')}</table>` : '<p class="section-desc">임원진이 지정되지 않았습니다.</p>'; })()}
 
-<h2>3. 재무 현황</h2>
-<p class="section-desc">동아리 재무 상태와 최근 거래 내역입니다.</p>
+<h2>3. 재무 현황 및 추이</h2>
+<p class="section-desc">동아리 재무 상태와 월별 변동 추이입니다.</p>
 <div class="summary-grid">
   <div class="summary-box"><div class="label">총 수입</div><div class="value green">${formatExpAmount(totalIncome)}원</div></div>
   <div class="summary-box"><div class="label">총 지출</div><div class="value red">${formatExpAmount(totalExpense)}원</div></div>
   <div class="summary-box"><div class="label">잔액</div><div class="value ${balance >= 0 ? 'green' : 'red'}">${balance >= 0 ? '+' : ''}${formatExpAmount(balance)}원</div></div>
+  <div class="summary-box"><div class="label">거래 건수</div><div class="value">${expenses.length}건</div></div>
 </div>
-${expenses.length > 0 ? `<h3>최근 거래 내역</h3><table><tr><th>구분</th><th>항목</th><th>금액</th><th>발생일</th><th>출처/용도</th><th>메모</th></tr>
-${expenses.sort((a,b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt)).slice(0, 30).map(e => `<tr><td><span class="badge ${e.type === 'income' ? 'badge-green' : 'badge-orange'}">${e.type === 'income' ? '수입' : '지출'}</span></td><td>${e.category || e.description || '-'}</td><td style="text-align:right;font-weight:600">${formatExpAmount(e.amount)}원</td><td>${e.occurredAt ? new Date(e.occurredAt).toLocaleDateString('ko-KR') : '-'}</td><td>${e.source || '-'}</td><td>${e.description || '-'}</td></tr>`).join('')}</table>
+
+${expMonths.length > 0 ? `<h3>📊 월별 수입/지출 추이</h3>
+<table class="trend-table"><tr><th>기간</th><th style="text-align:right;color:#22c55e">수입</th><th style="text-align:right;color:#f59e0b">지출</th><th style="text-align:right">건수</th></tr>
+${[...expMonths].reverse().map(k => `<tr><td>${k.replace('.', '년 ')}월</td><td style="text-align:right;color:#22c55e">${formatExpAmount(monthlyExp[k].income)}원</td><td style="text-align:right;color:#f59e0b">${formatExpAmount(monthlyExp[k].expense)}원</td><td style="text-align:right">${monthlyExp[k].count}건</td></tr>`).join('')}</table>` : ''}
+
+${Object.keys(catExp).length > 0 ? `<h3>항목별 지출 비중</h3>
+${Object.entries(catExp).sort((a,b) => b[1] - a[1]).map(([cat, amt], i) => {
+  const colors = ['#4d8ef7','#22c55e','#f59e0b','#ef4444','#8b5cf6','#06b6d4'];
+  return pctBar(`${cat} (₩${formatExpAmount(amt)})`, amt, totalExpense, colors[i % colors.length]);
+}).join('')}` : ''}
+
+${expenses.length > 0 ? `<h3>최근 거래 내역</h3><table><tr><th>구분</th><th>항목</th><th>금액</th><th>발생일</th><th>출처/용도</th></tr>
+${expenses.sort((a,b) => new Date(b.occurredAt || b.createdAt) - new Date(a.occurredAt || a.createdAt)).slice(0, 30).map(e => `<tr><td><span class="badge ${e.type === 'income' ? 'badge-green' : 'badge-orange'}">${e.type === 'income' ? '수입' : '지출'}</span></td><td>${e.category || e.description || '-'}</td><td style="text-align:right;font-weight:600">${formatExpAmount(e.amount)}원</td><td>${e.occurredAt ? new Date(e.occurredAt).toLocaleDateString('ko-KR') : '-'}</td><td>${e.source || e.description || '-'}</td></tr>`).join('')}</table>
 ${expenses.length > 30 ? `<p class="section-desc">* 최근 30건만 표시. 전체 ${expenses.length}건은 앱에서 확인하세요.</p>` : ''}` : '<p class="section-desc">거래 내역이 없습니다.</p>'}
 
-<h2>4. 일정 관리</h2>
-<p class="section-desc">등록된 일정 ${schedules.length}건입니다.</p>
-${(() => { const now = new Date(); const upcoming = schedules.filter(s => new Date(s.date) >= now).sort((a,b) => new Date(a.date) - new Date(b.date)); const past = schedules.filter(s => new Date(s.date) < now).sort((a,b) => new Date(b.date) - new Date(a.date)); let html = ''; if (upcoming.length > 0) { html += '<h3>📅 예정 일정</h3><table><tr><th>일정명</th><th>날짜</th><th>분류</th><th>장소</th><th>메모</th></tr>' + upcoming.map(s => `<tr><td><strong>${s.title}</strong></td><td>${formatScheduleDate(s.date)}</td><td>${s.category || '-'}</td><td>${s.location || '-'}</td><td>${s.memo || '-'}</td></tr>`).join('') + '</table>'; } if (past.length > 0) { html += '<h3>지난 일정</h3><table><tr><th>일정명</th><th>날짜</th><th>분류</th><th>장소</th></tr>' + past.slice(0,20).map(s => `<tr><td>${s.title}</td><td>${formatScheduleDate(s.date)}</td><td>${s.category || '-'}</td><td>${s.location || '-'}</td></tr>`).join('') + '</table>'; if (past.length > 20) html += '<p class="section-desc">* 최근 20건만 표시</p>'; } return html || '<p class="section-desc">등록된 일정이 없습니다.</p>'; })()}
+<h2>4. 일정 관리 및 월별 현황</h2>
+<p class="section-desc">등록된 일정 ${schedules.length}건의 현황과 월별 분포입니다.</p>
+
+${schMonths.length > 0 ? `<h3>📊 월별 일정 분포</h3>
+${barSvg(schMonths.slice(-12).map(k => ({ k: k.slice(-2) + '월', v: monthlySch[k].length, l: monthlySch[k].length + '건' })), '#22c55e')}` : ''}
+
+${(() => { const now = new Date(); const upcoming = schedules.filter(s => new Date(s.date) >= now).sort((a,b) => new Date(a.date) - new Date(b.date)); const past = schedules.filter(s => new Date(s.date) < now).sort((a,b) => new Date(b.date) - new Date(a.date)); let h = ''; if (upcoming.length > 0) { h += '<h3>📅 예정 일정</h3><table><tr><th>일정명</th><th>날짜</th><th>분류</th><th>장소</th><th>메모</th></tr>' + upcoming.map(s => `<tr><td><strong>${s.title}</strong></td><td>${formatScheduleDate(s.date)}</td><td>${s.category || '-'}</td><td>${s.location || '-'}</td><td>${s.memo || '-'}</td></tr>`).join('') + '</table>'; }
+if (schMonths.length > 0) { h += '<h3>월별 주요 일정</h3>'; [...schMonths].reverse().slice(0, 6).forEach(k => { h += `<p style="font-weight:700;color:#4d8ef7;margin:12px 0 4px">${k.replace('.', '년 ')}월 (${monthlySch[k].length}건)</p><table class="trend-table"><tr><th>일정명</th><th>날짜</th><th>분류</th></tr>${monthlySch[k].sort((a,b) => new Date(a.date) - new Date(b.date)).map(s => `<tr><td>${s.title}</td><td>${formatScheduleDate(s.date)}</td><td>${s.category || '-'}</td></tr>`).join('')}</table>`; }); }
+return h || '<p class="section-desc">등록된 일정이 없습니다.</p>'; })()}
 
 <h2>5. 자료 보관함</h2>
 <p class="section-desc">보관 중인 자료 ${documents.length}건입니다. 실제 파일은 앱에서 다운로드하세요.</p>
 ${documents.length > 0 ? `<table><tr><th>자료명</th><th>폴더</th><th>작성자</th><th>업로드일</th></tr>
 ${documents.map(d => `<tr><td><strong>${d.name}</strong></td><td>${d.category || '-'}</td><td>${d.author || '-'}</td><td>${d.uploadedAt ? new Date(d.uploadedAt).toLocaleDateString('ko-KR') : '-'}</td></tr>`).join('')}</table>` : '<p class="section-desc">보관 중인 자료가 없습니다.</p>'}
 
-<h2>6. 후원 관계</h2>
-<p class="section-desc">후원 관계 ${sponsors.length}건입니다. 관계 유지가 중요합니다.</p>
-${sponsors.length > 0 ? `<table><tr><th>후원자/기관</th><th>유형</th><th>금액</th><th>담당자</th><th>연락처</th><th>상태</th></tr>
-${sponsors.map(s => `<tr><td><strong>${s.name}</strong></td><td>${s.type || '-'}</td><td style="text-align:right">${formatAmount(s.amount)}원</td><td>${s.manager || '-'}</td><td>${s.contact || '-'}</td><td>${s.status || '-'}</td></tr>`).join('')}</table>
-<div class="note"><strong>💡 후원 관계 인수인계 팁</strong><br>• 정기 후원자에게 담당자 변경 안내를 보내세요<br>• 후원 약정 갱신 시기를 확인하세요<br>• 감사 인사를 빠뜨리지 마세요</div>` : '<p class="section-desc">등록된 후원 내역이 없습니다.</p>'}
+<h2>6. 후원 관계 및 추이</h2>
+<p class="section-desc">후원 관계 ${sponsors.length}건의 현황과 관리 가이드입니다.</p>
+
+${sponMonths.length > 0 ? `<h3>📊 월별 후원금 추이</h3>
+${barSvg(sponMonths.map(k => ({ k: k.slice(-2) + '월', v: monthlySpon[k].total, l: '₩' + formatAmount(monthlySpon[k].total) })), '#ef4444')}
+<table class="trend-table"><tr><th>기간</th><th style="text-align:right">후원금</th><th>후원자</th></tr>
+${[...sponMonths].reverse().map(k => `<tr><td>${k.replace('.', '년 ')}월</td><td style="text-align:right;font-weight:600">₩${formatAmount(monthlySpon[k].total)}</td><td>${monthlySpon[k].items.map(s => s.name).join(', ')}</td></tr>`).join('')}</table>` : ''}
+
+${sponsors.length > 0 ? `<h3>후원자 상세 및 대응 가이드</h3><table><tr><th>후원자/기관</th><th>유형</th><th>금액</th><th>담당자</th><th>연락처</th><th>상태</th></tr>
+${sponsors.map(s => `<tr><td><strong>${s.name}</strong></td><td>${s.type || '-'}</td><td style="text-align:right">₩${formatAmount(s.amount)}</td><td>${s.manager || '-'}</td><td>${s.contact || '-'}</td><td>${s.status || '-'}</td></tr>`).join('')}</table>
+<div class="tip"><strong>💡 후원 관계 인수인계 체크리스트</strong><br>
+• 정기 후원자에게 담당자 변경 안내를 보내세요<br>
+• 후원 약정 갱신 시기를 확인하세요<br>
+• 감사 인사를 빠뜨리지 마세요<br>
+• 활성 후원 관계를 최우선으로 관리하세요</div>` : '<p class="section-desc">등록된 후원 내역이 없습니다.</p>'}
 
 <h2>7. 졸업 선배 네트워크</h2>
 <p class="section-desc">졸업 선배 ${alumni.length}명의 연락처입니다.</p>
@@ -2257,8 +2368,8 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
             const sortedKeys = Object.keys(grouped).sort();
             const lastN = sortedKeys.slice(-8);
             const maxVal = Math.max(...lastN.map(k => Math.max(grouped[k].income, grouped[k].expense)), 1);
-            const chartH = 140;
-            const barW = lastN.length > 0 ? Math.min(28, Math.floor(260 / lastN.length / 2)) : 20;
+            const chartH = 80;
+            const barW = lastN.length > 0 ? Math.min(22, Math.floor(220 / lastN.length / 2)) : 16;
             return (
               <>
                 <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
@@ -2295,12 +2406,12 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                         <span style={{ fontSize: 11, color: 'var(--ok)' }}><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: 'var(--ok)', marginRight: 3, verticalAlign: 1 }}></span>수입</span>
                         <span style={{ fontSize: 11, color: 'var(--warn)' }}><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: 'var(--warn)', marginRight: 3, verticalAlign: 1 }}></span>지출</span>
                       </div>
-                      <svg viewBox={`0 0 ${Math.max(lastN.length * (barW * 2 + 16) + 20, 200)} ${chartH + 40}`} style={{ width: '100%', height: 'auto' }}>
+                      <svg viewBox={`0 0 ${Math.max(lastN.length * (barW * 2 + 12) + 20, 160)} ${chartH + 28}`} style={{ width: '100%', height: 'auto', maxHeight: 110 }}>
                         {lastN.map((k, i) => {
                           const g = grouped[k];
                           const ih = Math.max((g.income / maxVal) * chartH, g.income > 0 ? 4 : 0);
                           const eh = Math.max((g.expense / maxVal) * chartH, g.expense > 0 ? 4 : 0);
-                          const x = i * (barW * 2 + 16) + 10;
+                          const x = i * (barW * 2 + 12) + 10;
                           return (
                             <g key={k}>
                               <rect x={x} y={chartH - ih} width={barW} height={ih} rx={3} fill="#22c55e" opacity={0.85} />
@@ -2309,7 +2420,7 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                             </g>
                           );
                         })}
-                        <line x1={0} y1={chartH} x2={lastN.length * (barW * 2 + 16) + 20} y2={chartH} stroke="var(--hair)" strokeWidth={1} />
+                        <line x1={0} y1={chartH} x2={lastN.length * (barW * 2 + 12) + 20} y2={chartH} stroke="var(--hair)" strokeWidth={1} />
                       </svg>
                     </>
                   ) : (
@@ -2325,7 +2436,7 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                         const colors = ['#4d8ef7', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
                         return (
                           <div key={i} style={{ marginBottom: 10 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 3 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 4 }}>
                               <span>{c.category}</span>
                               <span style={{ fontWeight: 700 }}>₩{formatExpAmount(c.total)} ({pct}%)</span>
                             </div>
@@ -2344,7 +2455,7 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                   <div className="card">
                     <h3 style={{ marginBottom: 8 }}>기간별 상세</h3>
                     <div style={{ overflowX: 'auto' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                         <thead><tr style={{ borderBottom: '2px solid var(--hair)' }}>
                           <th style={{ textAlign: 'left', padding: '6px 4px', fontWeight: 600 }}>기간</th>
                           <th style={{ textAlign: 'right', padding: '6px 4px', fontWeight: 600, color: 'var(--ok)' }}>수입</th>
@@ -2385,7 +2496,7 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
             const sortedKeys = Object.keys(byPeriod).sort();
             const lastN = sortedKeys.slice(-8);
             const maxCount = Math.max(...lastN.map(k => byPeriod[k].length), 1);
-            const chartH = 120;
+            const chartH = 70;
             const roleCount = {};
             membersList.forEach(m => { const r = m.role || '부원'; roleCount[r] = (roleCount[r] || 0) + 1; });
             const roles = Object.entries(roleCount).sort((a, b) => b[1] - a[1]);
@@ -2412,20 +2523,20 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                 <div className="card" style={{ marginBottom: 10 }}>
                   <h3 style={{ marginBottom: 8 }}>가입 추이</h3>
                   {lastN.length > 0 ? (
-                    <svg viewBox={`0 0 ${Math.max(lastN.length * 44 + 20, 200)} ${chartH + 40}`} style={{ width: '100%', height: 'auto' }}>
+                    <svg viewBox={`0 0 ${Math.max(lastN.length * 36 + 20, 160)} ${chartH + 30}`} style={{ width: '100%', height: 'auto', maxHeight: 120 }}>
                       {lastN.map((k, i) => {
                         const cnt = byPeriod[k].length;
                         const h = Math.max((cnt / maxCount) * chartH, cnt > 0 ? 6 : 0);
-                        const x = i * 44 + 10;
+                        const x = i * 36 + 10;
                         return (
                           <g key={k}>
-                            <rect x={x} y={chartH - h} width={28} height={h} rx={4} fill="#4d8ef7" opacity={0.85} />
-                            <text x={x + 14} y={chartH - h - 6} textAnchor="middle" fill="var(--ink)" fontSize={10} fontWeight={700}>{cnt}</text>
-                            <text x={x + 14} y={chartH + 14} textAnchor="middle" fill="var(--muted)" fontSize={9}>{k.length > 7 ? k.slice(-5) : k}</text>
+                            <rect x={x} y={chartH - h} width={22} height={h} rx={3} fill="#4d8ef7" opacity={0.85} />
+                            <text x={x + 11} y={chartH - h - 6} textAnchor="middle" fill="var(--ink)" fontSize={10} fontWeight={700}>{cnt}</text>
+                            <text x={x + 11} y={chartH + 14} textAnchor="middle" fill="var(--muted)" fontSize={9}>{k.length > 7 ? k.slice(-5) : k}</text>
                           </g>
                         );
                       })}
-                      <line x1={0} y1={chartH} x2={lastN.length * 44 + 20} y2={chartH} stroke="var(--hair)" strokeWidth={1} />
+                      <line x1={0} y1={chartH} x2={lastN.length * 36 + 20} y2={chartH} stroke="var(--hair)" strokeWidth={1} />
                     </svg>
                   ) : (
                     <div className="cap" style={{ textAlign: 'center', padding: 24 }}>부원 데이터를 등록하면 추이 그래프가 나타납니다.</div>
@@ -2438,7 +2549,7 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                     const colors = ['#4d8ef7', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6'];
                     return (
                       <div key={role} style={{ marginBottom: 10 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 3 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 4 }}>
                           <span>{role}</span>
                           <span style={{ fontWeight: 700 }}>{cnt}명 ({pct}%)</span>
                         </div>
@@ -2456,7 +2567,7 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                       <div key={k} style={{ marginBottom: 12 }}>
                         <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4, color: 'var(--blue)' }}>{k} <span style={{ fontWeight: 400, color: 'var(--muted)' }}>({byPeriod[k].length}명)</span></div>
                         {byPeriod[k].map((m, j) => (
-                          <div key={j} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0', borderBottom: '1px solid var(--hair)' }}>
+                          <div key={j} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, padding: '6px 0', borderBottom: '1px solid var(--hair)' }}>
                             <span>{m.name} <span style={{ color: 'var(--muted)' }}>· {m.role || '부원'}</span></span>
                             <span style={{ color: 'var(--muted)' }}>{m.department || ''}</span>
                           </div>
@@ -2481,7 +2592,7 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
             const sortedKeys = Object.keys(months).sort();
             const lastN = sortedKeys.slice(-8);
             const maxCount = Math.max(...lastN.map(k => months[k].length), 1);
-            const chartH = 120;
+            const chartH = 70;
             const catCount = {};
             scheduleList.forEach(s => { const c = s.category || '기타'; catCount[c] = (catCount[c] || 0) + 1; });
             const cats = Object.entries(catCount).sort((a, b) => b[1] - a[1]);
@@ -2505,20 +2616,20 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                 <div className="card" style={{ marginBottom: 10 }}>
                   <h3 style={{ marginBottom: 8 }}>월별 일정 수</h3>
                   {lastN.length > 0 ? (
-                    <svg viewBox={`0 0 ${Math.max(lastN.length * 44 + 20, 200)} ${chartH + 40}`} style={{ width: '100%', height: 'auto' }}>
+                    <svg viewBox={`0 0 ${Math.max(lastN.length * 36 + 20, 160)} ${chartH + 30}`} style={{ width: '100%', height: 'auto', maxHeight: 120 }}>
                       {lastN.map((k, i) => {
                         const cnt = months[k].length;
                         const h = Math.max((cnt / maxCount) * chartH, cnt > 0 ? 6 : 0);
-                        const x = i * 44 + 10;
+                        const x = i * 36 + 10;
                         return (
                           <g key={k}>
-                            <rect x={x} y={chartH - h} width={28} height={h} rx={4} fill="#22c55e" opacity={0.85} />
-                            <text x={x + 14} y={chartH - h - 6} textAnchor="middle" fill="var(--ink)" fontSize={10} fontWeight={700}>{cnt}</text>
-                            <text x={x + 14} y={chartH + 14} textAnchor="middle" fill="var(--muted)" fontSize={9}>{k.slice(-2)}월</text>
+                            <rect x={x} y={chartH - h} width={22} height={h} rx={3} fill="#22c55e" opacity={0.85} />
+                            <text x={x + 11} y={chartH - h - 6} textAnchor="middle" fill="var(--ink)" fontSize={10} fontWeight={700}>{cnt}</text>
+                            <text x={x + 11} y={chartH + 14} textAnchor="middle" fill="var(--muted)" fontSize={9}>{k.slice(-2)}월</text>
                           </g>
                         );
                       })}
-                      <line x1={0} y1={chartH} x2={lastN.length * 44 + 20} y2={chartH} stroke="var(--hair)" strokeWidth={1} />
+                      <line x1={0} y1={chartH} x2={lastN.length * 36 + 20} y2={chartH} stroke="var(--hair)" strokeWidth={1} />
                     </svg>
                   ) : (
                     <div className="cap" style={{ textAlign: 'center', padding: 24 }}>일정을 등록하면 추이 그래프가 나타납니다.</div>
@@ -2532,7 +2643,7 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                       const colors = ['#4d8ef7', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
                       return (
                         <div key={cat} style={{ marginBottom: 10 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 3 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 4 }}>
                             <span>{cat}</span>
                             <span style={{ fontWeight: 700 }}>{cnt}건 ({pct}%)</span>
                           </div>
@@ -2551,7 +2662,7 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                       <div key={k} style={{ marginBottom: 14 }}>
                         <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4, color: 'var(--ok)' }}>{k.replace('.', '년 ')}월 <span style={{ fontWeight: 400, color: 'var(--muted)' }}>({months[k].length}건)</span></div>
                         {months[k].sort((a, b) => new Date(a.date) - new Date(b.date)).map((s, j) => (
-                          <div key={j} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '5px 0', borderBottom: '1px solid var(--hair)' }}>
+                          <div key={j} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, padding: '6px 0', borderBottom: '1px solid var(--hair)' }}>
                             <span><i className="ti ti-calendar-event" style={{ fontSize: 12, color: 'var(--blue)', marginRight: 4, verticalAlign: -1 }}></i>{s.title}</span>
                             <span style={{ color: 'var(--muted)', whiteSpace: 'nowrap', marginLeft: 8 }}>{formatScheduleDate(s.date)}</span>
                           </div>
@@ -2581,7 +2692,7 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
             const sortedKeys = Object.keys(byPeriod).sort();
             const lastN = sortedKeys.slice(-8);
             const maxVal = Math.max(...lastN.map(k => byPeriod[k].total), 1);
-            const chartH = 120;
+            const chartH = 70;
             const typeCount = {};
             sponsorList.forEach(s => { const t = s.type || '기타'; typeCount[t] = (typeCount[t] || 0) + 1; });
             const types = Object.entries(typeCount).sort((a, b) => b[1] - a[1]);
@@ -2609,19 +2720,19 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                 <div className="card" style={{ marginBottom: 10 }}>
                   <h3 style={{ marginBottom: 8 }}>후원금 추이</h3>
                   {lastN.length > 0 ? (
-                    <svg viewBox={`0 0 ${Math.max(lastN.length * 44 + 20, 200)} ${chartH + 40}`} style={{ width: '100%', height: 'auto' }}>
+                    <svg viewBox={`0 0 ${Math.max(lastN.length * 36 + 20, 160)} ${chartH + 30}`} style={{ width: '100%', height: 'auto', maxHeight: 120 }}>
                       {lastN.map((k, i) => {
                         const h = Math.max((byPeriod[k].total / maxVal) * chartH, byPeriod[k].total > 0 ? 6 : 0);
-                        const x = i * 44 + 10;
+                        const x = i * 36 + 10;
                         return (
                           <g key={k}>
-                            <rect x={x} y={chartH - h} width={28} height={h} rx={4} fill="#ef4444" opacity={0.8} />
-                            <text x={x + 14} y={chartH - h - 6} textAnchor="middle" fill="var(--ink)" fontSize={9} fontWeight={700}>₩{formatAmount(byPeriod[k].total)}</text>
-                            <text x={x + 14} y={chartH + 14} textAnchor="middle" fill="var(--muted)" fontSize={9}>{k.length > 7 ? k.slice(-5) : k}</text>
+                            <rect x={x} y={chartH - h} width={22} height={h} rx={3} fill="#ef4444" opacity={0.8} />
+                            <text x={x + 11} y={chartH - h - 6} textAnchor="middle" fill="var(--ink)" fontSize={9} fontWeight={700}>₩{formatAmount(byPeriod[k].total)}</text>
+                            <text x={x + 11} y={chartH + 14} textAnchor="middle" fill="var(--muted)" fontSize={9}>{k.length > 7 ? k.slice(-5) : k}</text>
                           </g>
                         );
                       })}
-                      <line x1={0} y1={chartH} x2={lastN.length * 44 + 20} y2={chartH} stroke="var(--hair)" strokeWidth={1} />
+                      <line x1={0} y1={chartH} x2={lastN.length * 36 + 20} y2={chartH} stroke="var(--hair)" strokeWidth={1} />
                     </svg>
                   ) : (
                     <div className="cap" style={{ textAlign: 'center', padding: 24 }}>후원 데이터를 등록하면 추이 그래프가 나타납니다.</div>
@@ -2635,7 +2746,7 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                       const colors = ['#ef4444', '#f59e0b', '#4d8ef7', '#22c55e', '#8b5cf6'];
                       return (
                         <div key={type} style={{ marginBottom: 10 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 3 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 4 }}>
                             <span>{type}</span>
                             <span style={{ fontWeight: 700 }}>{cnt}건 ({pct}%)</span>
                           </div>
@@ -2652,16 +2763,16 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                   {sponsorList.length > 0 ? (
                     <div>
                       {sponsorList.map((s, i) => (
-                        <div key={i} style={{ padding: '10px 0', borderBottom: '1px solid var(--hair)' }}>
+                        <div key={i} style={{ padding: '12px 0', borderBottom: '1px solid var(--hair)' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                            <span style={{ fontSize: 13, fontWeight: 700 }}>{s.name}</span>
-                            <span className={`badge ${s.status === '활성' || s.status === '유지' ? 'badge-ok' : 'badge-warn'}`} style={{ height: 20, fontSize: 10, padding: '0 8px' }}>{s.status || '미정'}</span>
+                            <span style={{ fontSize: 15, fontWeight: 700 }}>{s.name}</span>
+                            <span className={`badge ${s.status === '활성' || s.status === '유지' ? 'badge-ok' : 'badge-warn'}`} style={{ height: 22, fontSize: 11, padding: '0 8px' }}>{s.status || '미정'}</span>
                           </div>
-                          <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+                          <div style={{ fontSize: 13, color: 'var(--muted)' }}>
                             {s.type && <span>{s.type} · </span>}₩{formatAmount(s.amount)}
                             {s.contact && <span> · {s.contact}</span>}
                           </div>
-                          <div style={{ fontSize: 11, color: 'var(--blue)', marginTop: 4 }}>
+                          <div style={{ fontSize: 13, color: 'var(--blue)', marginTop: 4 }}>
                             <i className="ti ti-bulb" style={{ fontSize: 12, verticalAlign: -1, marginRight: 2 }}></i>
                             {s.status === '활성' || s.status === '유지' ? '정기적으로 감사 인사를 전하고, 후원 갱신 시기를 확인하세요.' :
                              s.status === '종료' ? '관계 유지를 위해 연말 인사를 보내는 것을 권장합니다.' :
