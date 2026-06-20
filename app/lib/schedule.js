@@ -84,13 +84,14 @@ export function getScheduleCount(clubId) {
   return getSchedules(clubId).length;
 }
 
-// 화면 표시용 날짜 포맷 (MM/DD HH:mm)
+// 화면 표시용 날짜 포맷 (YYYY/MM/DD HH:mm)
 export function formatScheduleDate(iso) {
   const d = new Date(iso);
   if (isNaN(d)) return iso;
+  const yy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
   const hh = String(d.getHours()).padStart(2, '0');
   const mi = String(d.getMinutes()).padStart(2, '0');
-  return `${mm}/${dd} ${hh}:${mi}`;
+  return `${yy}/${mm}/${dd} ${hh}:${mi}`;
 }
