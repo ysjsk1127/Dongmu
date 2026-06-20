@@ -1132,9 +1132,6 @@ export default function Home() {
                 <div className="sch-i"><div className="sch-dot" style={{ background: 'var(--warn)' }}></div><div className="sch-t">후원 내역</div><div className="sch-d" style={{ fontWeight: 700, color: 'var(--ink)' }}>{sponsorList.length}건</div></div>
               </div>
 
-              <button className="btn btn-fill" onClick={() => go('input')} style={{ marginTop: 4 }}>
-                <i className="ti ti-plus" style={{ fontSize: 18 }}></i> 새 기록 추가
-              </button>
             </div>
           </div>
         </div>
