@@ -1094,16 +1094,29 @@ export default function Home() {
 
             <div>
               <div className="card" style={{ marginTop: 0 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <h3 style={{ margin: '0 0 12px' }}>빠른 요약</h3>
+                <div className="sch-i"><div className="sch-dot" style={{ background: 'var(--blue)' }}></div><div className="sch-t">등록 부원</div><div className="sch-d" style={{ fontWeight: 700, color: 'var(--ink)' }}>{memC}명</div></div>
+                <div className="sch-i"><div className="sch-dot" style={{ background: 'var(--ok)' }}></div><div className="sch-t">등록 일정</div><div className="sch-d" style={{ fontWeight: 700, color: 'var(--ink)' }}>{schC}건</div></div>
+                <div className="sch-i"><div className="sch-dot" style={{ background: 'var(--gdrive)' }}></div><div className="sch-t">보관 자료</div><div className="sch-d" style={{ fontWeight: 700, color: 'var(--ink)' }}>{docC}건</div></div>
+                <div className="sch-i"><div className="sch-dot" style={{ background: 'var(--warn)' }}></div><div className="sch-t">후원 내역</div><div className="sch-d" style={{ fontWeight: 700, color: 'var(--ink)' }}>{sponsorList.length}건</div></div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── 다가오는 일정 + 달력 ── */}
+          <div className="home-calendar-section">
+            <div className="home-cal-left">
+              <div className="card" style={{ marginTop: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                   <h3 style={{ margin: 0 }}>다가오는 일정</h3>
                   <span className="cap" style={{ cursor: 'pointer', color: 'var(--blue)' }} onClick={() => go('schedule')}>전체보기</span>
                 </div>
                 {(() => {
                   const now = new Date();
-                  const upcoming = scheduleList.filter(s => new Date(s.date) >= now).sort((a, b) => new Date(a.date) - new Date(b.date)).slice(0, 4);
+                  const upcoming = scheduleList.filter(s => new Date(s.date) >= now).sort((a, b) => new Date(a.date) - new Date(b.date)).slice(0, 5);
                   if (upcoming.length === 0) {
                     return (
-                      <div className="cap" style={{ padding: '8px 0' }}>
+                      <div className="cap" style={{ padding: '12px 0' }}>
                         등록된 일정이 없습니다. <span style={{ color: 'var(--blue)', cursor: 'pointer' }} onClick={() => go('schedule')}>일정 추가하기</span>
                       </div>
                     );
@@ -1123,15 +1136,60 @@ export default function Home() {
                   });
                 })()}
               </div>
-
-              <div className="card" style={{ marginTop: 10 }}>
-                <h3 style={{ margin: '0 0 12px' }}>빠른 요약</h3>
-                <div className="sch-i"><div className="sch-dot" style={{ background: 'var(--blue)' }}></div><div className="sch-t">등록 부원</div><div className="sch-d" style={{ fontWeight: 700, color: 'var(--ink)' }}>{memC}명</div></div>
-                <div className="sch-i"><div className="sch-dot" style={{ background: 'var(--ok)' }}></div><div className="sch-t">등록 일정</div><div className="sch-d" style={{ fontWeight: 700, color: 'var(--ink)' }}>{schC}건</div></div>
-                <div className="sch-i"><div className="sch-dot" style={{ background: 'var(--gdrive)' }}></div><div className="sch-t">보관 자료</div><div className="sch-d" style={{ fontWeight: 700, color: 'var(--ink)' }}>{docC}건</div></div>
-                <div className="sch-i"><div className="sch-dot" style={{ background: 'var(--warn)' }}></div><div className="sch-t">후원 내역</div><div className="sch-d" style={{ fontWeight: 700, color: 'var(--ink)' }}>{sponsorList.length}건</div></div>
+            </div>
+            <div className="home-cal-right">
+              <div className="card" style={{ marginTop: 0 }}>
+                {(() => {
+                  const today = new Date();
+                  const calMonth = today.getMonth();
+                  const calYear = today.getFullYear();
+                  const firstDay = new Date(calYear, calMonth, 1).getDay();
+                  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+                  const weeks = [];
+                  let day = 1 - firstDay;
+                  for (let w = 0; w < 6 && day <= daysInMonth; w++) {
+                    const row = [];
+                    for (let d = 0; d < 7; d++, day++) {
+                      row.push(day);
+                    }
+                    weeks.push(row);
+                  }
+                  const monthNames = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
+                  const scheduleDates = new Set(scheduleList.map(s => {
+                    const d = new Date(s.date);
+                    return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+                  }));
+                  return (
+                    <>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                        <h3 style={{ margin: 0 }}>{calYear}년 {monthNames[calMonth]}</h3>
+                      </div>
+                      <table className="mini-cal">
+                        <thead>
+                          <tr>{['일','월','화','수','목','금','토'].map(d => <th key={d}>{d}</th>)}</tr>
+                        </thead>
+                        <tbody>
+                          {weeks.map((row, wi) => (
+                            <tr key={wi}>
+                              {row.map((dd, di) => {
+                                const isToday = dd === today.getDate();
+                                const inMonth = dd >= 1 && dd <= daysInMonth;
+                                const hasEvent = inMonth && scheduleDates.has(`${calYear}-${calMonth}-${dd}`);
+                                return (
+                                  <td key={di} className={`${!inMonth ? 'out' : ''} ${isToday ? 'today' : ''} ${di === 0 ? 'sun' : ''}`}>
+                                    {inMonth ? dd : ''}
+                                    {hasEvent && <span className="cal-dot"></span>}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </>
+                  );
+                })()}
               </div>
-
             </div>
           </div>
         </div>
