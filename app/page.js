@@ -72,6 +72,7 @@ export default function Home() {
   /* ── Home/data state ── */
   const [memC, setMemC] = useState(0);
   const [pkgOpen, setPkgOpen] = useState(false);
+  const [pkgInc, setPkgInc] = useState({ members: true, finance: true, schedule: true, docs: true, sponsor: true, alumni: true });
   const [rptTab, setRptTab] = useState('finance');
   const [rptPeriod, setRptPeriod] = useState('month');
   const [nowMonth, setNowMonth] = useState(0);
@@ -821,34 +822,37 @@ export default function Home() {
   상세 데이터와 실시간 현황은 동무 앱에 로그인하면 확인할 수 있습니다.
 </div>
 
-<h2>1. 운영 현황 요약</h2>
+${(() => {
+  const sections = [];
+  let n = 1;
+
+  sections.push(`<h2>${n++}. 운영 현황 요약</h2>
 <div class="summary-grid">
-  <div class="summary-box"><div class="label">총 부원</div><div class="value blue">${members.length}명</div></div>
-  <div class="summary-box"><div class="label">잔액</div><div class="value ${balance >= 0 ? 'green' : 'red'}">${balance >= 0 ? '+' : ''}${formatExpAmount(balance)}원</div></div>
-  <div class="summary-box"><div class="label">등록 일정</div><div class="value">${schedules.length}건</div></div>
-  <div class="summary-box"><div class="label">보관 자료</div><div class="value">${documents.length}건</div></div>
-  <div class="summary-box"><div class="label">누적 후원금</div><div class="value green">${formatAmount(sponsors.reduce((s, sp) => s + (sp.amount || 0), 0))}원</div></div>
-  <div class="summary-box"><div class="label">졸업 선배</div><div class="value">${alumni.length}명</div></div>
-</div>
+  ${pkgInc.members ? `<div class="summary-box"><div class="label">총 부원</div><div class="value blue">${members.length}명</div></div>` : ''}
+  ${pkgInc.finance ? `<div class="summary-box"><div class="label">잔액</div><div class="value ${balance >= 0 ? 'green' : 'red'}">${balance >= 0 ? '+' : ''}${formatExpAmount(balance)}원</div></div>` : ''}
+  ${pkgInc.schedule ? `<div class="summary-box"><div class="label">등록 일정</div><div class="value">${schedules.length}건</div></div>` : ''}
+  ${pkgInc.docs ? `<div class="summary-box"><div class="label">보관 자료</div><div class="value">${documents.length}건</div></div>` : ''}
+  ${pkgInc.sponsor ? `<div class="summary-box"><div class="label">누적 후원금</div><div class="value green">${formatAmount(sponsors.reduce((s, sp) => s + (sp.amount || 0), 0))}원</div></div>` : ''}
+  ${pkgInc.alumni ? `<div class="summary-box"><div class="label">졸업 선배</div><div class="value">${alumni.length}명</div></div>` : ''}
+</div>`);
 
-<h2>2. 부원 현황 및 추이</h2>
+  if (pkgInc.members) {
+    sections.push(`<h2>${n++}. 부원 현황 및 추이</h2>
 <p class="section-desc">현재 등록된 부원 ${members.length}명의 정보와 가입 추이입니다.</p>
-
 ${memMonths.length > 0 ? `<h3>📊 월별 가입 추이</h3>
 ${barSvg(memMonths.map(k => ({ k: k.slice(-2) + '월', v: monthlyMem[k].length, l: monthlyMem[k].length + '명' })), '#4d8ef7')}
 <table class="trend-table"><tr><th>기간</th><th>가입 인원</th><th>가입자</th></tr>
 ${[...memMonths].reverse().map(k => `<tr><td>${k.replace('.', '년 ')}월</td><td><strong>${monthlyMem[k].length}명</strong></td><td>${monthlyMem[k].map(m => m.name).join(', ')}</td></tr>`).join('')}</table>` : ''}
-
 ${Object.keys(roleCount).length > 0 ? `<h3>역할 분포</h3>
-${Object.entries(roleCount).sort((a,b) => b[1] - a[1]).map(([role, cnt]) => pctBar(`${role} (${cnt}명)`, cnt, members.length, '#4d8ef7')).join('')}` : ''}
-
+${Object.entries(roleCount).sort((a,b) => b[1] - a[1]).map(([role, cnt]) => pctBar(role + ' (' + cnt + '명)', cnt, members.length, '#4d8ef7')).join('')}` : ''}
 ${members.length > 0 ? `<h3>전체 부원 명단</h3><table><tr><th>이름</th><th>역할</th><th>학번</th><th>학과</th><th>연락처</th><th>이메일</th></tr>
 ${members.map(m => `<tr><td><strong>${m.name}</strong></td><td><span class="badge badge-blue">${m.role || '부원'}</span></td><td>${m.studentId || '-'}</td><td>${m.department || '-'}</td><td>${m.phone || '-'}</td><td>${m.email || '-'}</td></tr>`).join('')}</table>` : '<p class="section-desc">등록된 부원이 없습니다.</p>'}
-
 <h3>⚠️ 주요 연락처 (임원진)</h3>
-${(() => { const execs = members.filter(m => ['회장','부회장','총무','임원진'].includes(m.role)); return execs.length > 0 ? `<table><tr><th>역할</th><th>이름</th><th>연락처</th><th>이메일</th></tr>${execs.map(m => `<tr><td><strong>${m.role}</strong></td><td>${m.name}</td><td>${m.phone || '-'}</td><td>${m.email || '-'}</td></tr>`).join('')}</table>` : '<p class="section-desc">임원진이 지정되지 않았습니다.</p>'; })()}
+${(() => { const execs = members.filter(m => ['회장','부회장','총무','임원진'].includes(m.role)); return execs.length > 0 ? `<table><tr><th>역할</th><th>이름</th><th>연락처</th><th>이메일</th></tr>${execs.map(m => `<tr><td><strong>${m.role}</strong></td><td>${m.name}</td><td>${m.phone || '-'}</td><td>${m.email || '-'}</td></tr>`).join('')}</table>` : '<p class="section-desc">임원진이 지정되지 않았습니다.</p>'; })()}`);
+  }
 
-<h2>3. 재무 현황 및 추이</h2>
+  if (pkgInc.finance) {
+    sections.push(`<h2>${n++}. 재무 현황 및 추이</h2>
 <p class="section-desc">동아리 재무 상태와 월별 변동 추이입니다.</p>
 <div class="summary-grid">
   <div class="summary-box"><div class="label">총 수입</div><div class="value green">${formatExpAmount(totalIncome)}원</div></div>
@@ -856,56 +860,61 @@ ${(() => { const execs = members.filter(m => ['회장','부회장','총무','임
   <div class="summary-box"><div class="label">잔액</div><div class="value ${balance >= 0 ? 'green' : 'red'}">${balance >= 0 ? '+' : ''}${formatExpAmount(balance)}원</div></div>
   <div class="summary-box"><div class="label">거래 건수</div><div class="value">${expenses.length}건</div></div>
 </div>
-
 ${expMonths.length > 0 ? `<h3>📊 월별 수입/지출 추이</h3>
 <table class="trend-table"><tr><th>기간</th><th style="text-align:right;color:#22c55e">수입</th><th style="text-align:right;color:#f59e0b">지출</th><th style="text-align:right">건수</th></tr>
 ${[...expMonths].reverse().map(k => `<tr><td>${k.replace('.', '년 ')}월</td><td style="text-align:right;color:#22c55e">${formatExpAmount(monthlyExp[k].income)}원</td><td style="text-align:right;color:#f59e0b">${formatExpAmount(monthlyExp[k].expense)}원</td><td style="text-align:right">${monthlyExp[k].count}건</td></tr>`).join('')}</table>` : ''}
-
 ${Object.keys(catExp).length > 0 ? `<h3>항목별 지출 비중</h3>
 ${Object.entries(catExp).sort((a,b) => b[1] - a[1]).map(([cat, amt], i) => {
   const colors = ['#4d8ef7','#22c55e','#f59e0b','#ef4444','#8b5cf6','#06b6d4'];
-  return pctBar(`${cat} (₩${formatExpAmount(amt)})`, amt, totalExpense, colors[i % colors.length]);
+  return pctBar(cat + ' (₩' + formatExpAmount(amt) + ')', amt, totalExpense, colors[i % colors.length]);
 }).join('')}` : ''}
-
 ${expenses.length > 0 ? `<h3>최근 거래 내역</h3><table><tr><th>구분</th><th>항목</th><th>금액</th><th>발생일</th><th>출처/용도</th></tr>
 ${expenses.sort((a,b) => new Date(b.occurredAt || b.createdAt) - new Date(a.occurredAt || a.createdAt)).slice(0, 30).map(e => `<tr><td><span class="badge ${e.type === 'income' ? 'badge-green' : 'badge-orange'}">${e.type === 'income' ? '수입' : '지출'}</span></td><td>${e.category || e.description || '-'}</td><td style="text-align:right;font-weight:600">${formatExpAmount(e.amount)}원</td><td>${e.occurredAt ? new Date(e.occurredAt).toLocaleDateString('ko-KR') : '-'}</td><td>${e.source || e.description || '-'}</td></tr>`).join('')}</table>
-${expenses.length > 30 ? `<p class="section-desc">* 최근 30건만 표시. 전체 ${expenses.length}건은 앱에서 확인하세요.</p>` : ''}` : '<p class="section-desc">거래 내역이 없습니다.</p>'}
+${expenses.length > 30 ? '<p class="section-desc">* 최근 30건만 표시. 전체 ' + expenses.length + '건은 앱에서 확인하세요.</p>' : ''}` : '<p class="section-desc">거래 내역이 없습니다.</p>'}`);
+  }
 
-<h2>4. 일정 관리 및 월별 현황</h2>
+  if (pkgInc.schedule) {
+    sections.push(`<h2>${n++}. 일정 관리 및 월별 현황</h2>
 <p class="section-desc">등록된 일정 ${schedules.length}건의 현황과 월별 분포입니다.</p>
-
 ${schMonths.length > 0 ? `<h3>📊 월별 일정 분포</h3>
 ${barSvg(schMonths.slice(-12).map(k => ({ k: k.slice(-2) + '월', v: monthlySch[k].length, l: monthlySch[k].length + '건' })), '#22c55e')}` : ''}
+${(() => { const now = new Date(); const upcoming = schedules.filter(s => new Date(s.date) >= now).sort((a,b) => new Date(a.date) - new Date(b.date)); let h = ''; if (upcoming.length > 0) { h += '<h3>📅 예정 일정</h3><table><tr><th>일정명</th><th>날짜</th><th>분류</th><th>장소</th><th>메모</th></tr>' + upcoming.map(s => `<tr><td><strong>${s.title}</strong></td><td>${formatScheduleDate(s.date)}</td><td>${s.category || '-'}</td><td>${s.location || '-'}</td><td>${s.memo || '-'}</td></tr>`).join('') + '</table>'; }
+if (schMonths.length > 0) { h += '<h3>월별 주요 일정</h3>'; [...schMonths].reverse().slice(0, 6).forEach(k => { h += '<p style="font-weight:700;color:#4d8ef7;margin:12px 0 4px">' + k.replace('.', '년 ') + '월 (' + monthlySch[k].length + '건)</p><table class="trend-table"><tr><th>일정명</th><th>날짜</th><th>분류</th></tr>' + monthlySch[k].sort((a,b) => new Date(a.date) - new Date(b.date)).map(s => '<tr><td>' + s.title + '</td><td>' + formatScheduleDate(s.date) + '</td><td>' + (s.category || '-') + '</td></tr>').join('') + '</table>'; }); }
+return h || '<p class="section-desc">등록된 일정이 없습니다.</p>'; })()}`);
+  }
 
-${(() => { const now = new Date(); const upcoming = schedules.filter(s => new Date(s.date) >= now).sort((a,b) => new Date(a.date) - new Date(b.date)); const past = schedules.filter(s => new Date(s.date) < now).sort((a,b) => new Date(b.date) - new Date(a.date)); let h = ''; if (upcoming.length > 0) { h += '<h3>📅 예정 일정</h3><table><tr><th>일정명</th><th>날짜</th><th>분류</th><th>장소</th><th>메모</th></tr>' + upcoming.map(s => `<tr><td><strong>${s.title}</strong></td><td>${formatScheduleDate(s.date)}</td><td>${s.category || '-'}</td><td>${s.location || '-'}</td><td>${s.memo || '-'}</td></tr>`).join('') + '</table>'; }
-if (schMonths.length > 0) { h += '<h3>월별 주요 일정</h3>'; [...schMonths].reverse().slice(0, 6).forEach(k => { h += `<p style="font-weight:700;color:#4d8ef7;margin:12px 0 4px">${k.replace('.', '년 ')}월 (${monthlySch[k].length}건)</p><table class="trend-table"><tr><th>일정명</th><th>날짜</th><th>분류</th></tr>${monthlySch[k].sort((a,b) => new Date(a.date) - new Date(b.date)).map(s => `<tr><td>${s.title}</td><td>${formatScheduleDate(s.date)}</td><td>${s.category || '-'}</td></tr>`).join('')}</table>`; }); }
-return h || '<p class="section-desc">등록된 일정이 없습니다.</p>'; })()}
-
-<h2>5. 자료 보관함</h2>
+  if (pkgInc.docs) {
+    sections.push(`<h2>${n++}. 자료 보관함</h2>
 <p class="section-desc">보관 중인 자료 ${documents.length}건입니다. 실제 파일은 앱에서 다운로드하세요.</p>
 ${documents.length > 0 ? `<table><tr><th>자료명</th><th>폴더</th><th>작성자</th><th>업로드일</th></tr>
-${documents.map(d => `<tr><td><strong>${d.name}</strong></td><td>${d.category || '-'}</td><td>${d.author || '-'}</td><td>${d.uploadedAt ? new Date(d.uploadedAt).toLocaleDateString('ko-KR') : '-'}</td></tr>`).join('')}</table>` : '<p class="section-desc">보관 중인 자료가 없습니다.</p>'}
+${documents.map(d => `<tr><td><strong>${d.name}</strong></td><td>${d.category || '-'}</td><td>${d.author || '-'}</td><td>${d.uploadedAt ? new Date(d.uploadedAt).toLocaleDateString('ko-KR') : '-'}</td></tr>`).join('')}</table>` : '<p class="section-desc">보관 중인 자료가 없습니다.</p>'}`);
+  }
 
-<h2>6. 후원 관계 및 추이</h2>
+  if (pkgInc.sponsor) {
+    sections.push(`<h2>${n++}. 후원 관계 및 추이</h2>
 <p class="section-desc">후원 관계 ${sponsors.length}건의 현황과 관리 가이드입니다.</p>
-
 ${sponMonths.length > 0 ? `<h3>📊 월별 후원금 추이</h3>
 ${barSvg(sponMonths.map(k => ({ k: k.slice(-2) + '월', v: monthlySpon[k].total, l: '₩' + formatAmount(monthlySpon[k].total) })), '#ef4444')}
 <table class="trend-table"><tr><th>기간</th><th style="text-align:right">후원금</th><th>후원자</th></tr>
 ${[...sponMonths].reverse().map(k => `<tr><td>${k.replace('.', '년 ')}월</td><td style="text-align:right;font-weight:600">₩${formatAmount(monthlySpon[k].total)}</td><td>${monthlySpon[k].items.map(s => s.name).join(', ')}</td></tr>`).join('')}</table>` : ''}
-
 ${sponsors.length > 0 ? `<h3>후원자 상세 및 대응 가이드</h3><table><tr><th>후원자/기관</th><th>유형</th><th>금액</th><th>담당자</th><th>연락처</th><th>상태</th></tr>
 ${sponsors.map(s => `<tr><td><strong>${s.name}</strong></td><td>${s.type || '-'}</td><td style="text-align:right">₩${formatAmount(s.amount)}</td><td>${s.manager || '-'}</td><td>${s.contact || '-'}</td><td>${s.status || '-'}</td></tr>`).join('')}</table>
 <div class="tip"><strong>💡 후원 관계 인수인계 체크리스트</strong><br>
 • 정기 후원자에게 담당자 변경 안내를 보내세요<br>
 • 후원 약정 갱신 시기를 확인하세요<br>
 • 감사 인사를 빠뜨리지 마세요<br>
-• 활성 후원 관계를 최우선으로 관리하세요</div>` : '<p class="section-desc">등록된 후원 내역이 없습니다.</p>'}
+• 활성 후원 관계를 최우선으로 관리하세요</div>` : '<p class="section-desc">등록된 후원 내역이 없습니다.</p>'}`);
+  }
 
-<h2>7. 졸업 선배 네트워크</h2>
+  if (pkgInc.alumni) {
+    sections.push(`<h2>${n++}. 졸업 선배 네트워크</h2>
 <p class="section-desc">졸업 선배 ${alumni.length}명의 연락처입니다.</p>
 ${alumni.length > 0 ? `<table><tr><th>이름</th><th>기수</th><th>직장/직위</th><th>연락처</th><th>이메일</th><th>멘토링</th></tr>
-${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || '-'}</td><td>${[a.company, a.position].filter(Boolean).join(' / ') || '-'}</td><td>${a.phone || '-'}</td><td>${a.email || '-'}</td><td>${a.mentoring ? '✅ 가능' : '-'}</td></tr>`).join('')}</table>` : '<p class="section-desc">등록된 졸업 선배가 없습니다.</p>'}
+${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || '-'}</td><td>${[a.company, a.position].filter(Boolean).join(' / ') || '-'}</td><td>${a.phone || '-'}</td><td>${a.email || '-'}</td><td>${a.mentoring ? '✅ 가능' : '-'}</td></tr>`).join('')}</table>` : '<p class="section-desc">등록된 졸업 선배가 없습니다.</p>'}`);
+  }
+
+  return sections.join('\n');
+})()}
 
 <div class="footer">
   ${clubName} 인수인계 보고서 · ${today} · 동무(Dongmu) 앱으로 생성됨
@@ -2806,22 +2815,30 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                 <div>
                   <div className="stripe"></div>
                   <div className="card">
-                    <h3>인수인계 패키지</h3>
+                    <h3>포함 항목 선택</h3>
                     {[
-                      { icon: 'ti-users', label: `부원 현황 (${memC}명)` },
-                      { icon: 'ti-wallet', label: `재무 내역 (${expC}건, 잔액 ₩${formatExpAmount(Math.abs(expBalance))})` },
-                      { icon: 'ti-calendar', label: `활동 일정 (${schC}건)` },
-                      { icon: 'ti-folder', label: `자료 (${docC}건)` },
-                      { icon: 'ti-heart-handshake', label: `후원 내역 (₩${formatAmount(sponsorTotal)})` },
-                      { icon: 'ti-school', label: `졸업 선배 (${alumniList.length}명)` },
-                    ].map((item, i) => (
-                      <div className="menu-i" key={i}>
-                        <div className="menu-l"><i className={`ti ${item.icon}`}></i> {item.label}</div>
-                        <span className="badge badge-blue">포함</span>
+                      { key: 'members', icon: 'ti-users', label: `부원 현황 (${memC}명)` },
+                      { key: 'finance', icon: 'ti-wallet', label: `재무 내역 (${expC}건, 잔액 ₩${formatExpAmount(Math.abs(expBalance))})` },
+                      { key: 'schedule', icon: 'ti-calendar', label: `활동 일정 (${schC}건)` },
+                      { key: 'docs', icon: 'ti-folder', label: `자료 (${docC}건)` },
+                      { key: 'sponsor', icon: 'ti-heart-handshake', label: `후원 내역 (₩${formatAmount(sponsorTotal)})` },
+                      { key: 'alumni', icon: 'ti-school', label: `졸업 선배 (${alumniList.length}명)` },
+                    ].map(item => (
+                      <div key={item.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid var(--hair)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
+                          <i className={`ti ${item.icon}`} style={{ fontSize: 18, color: pkgInc[item.key] ? 'var(--blue)' : 'var(--muted)', flexShrink: 0 }}></i>
+                          <span style={{ fontSize: 14, color: pkgInc[item.key] ? 'var(--ink)' : 'var(--muted)' }}>{item.label}</span>
+                        </div>
+                        <div onClick={() => setPkgInc(prev => ({ ...prev, [item.key]: !prev[item.key] }))} style={{ width: 44, height: 24, borderRadius: 12, background: pkgInc[item.key] ? 'var(--blue)' : 'var(--hair)', cursor: 'pointer', position: 'relative', transition: 'background .2s', flexShrink: 0 }}>
+                          <div style={{ width: 20, height: 20, borderRadius: 10, background: '#fff', position: 'absolute', top: 2, left: pkgInc[item.key] ? 22 : 2, transition: 'left .2s', boxShadow: '0 1px 4px rgba(0,0,0,.3)' }}></div>
+                        </div>
                       </div>
                     ))}
                   </div>
-                  <button className="btn btn-ok" onClick={downloadPkg}>
+                  <div className="cap" style={{ textAlign: 'center', margin: '8px 0', color: 'var(--muted)' }}>
+                    {Object.values(pkgInc).filter(Boolean).length}개 항목 포함
+                  </div>
+                  <button className="btn btn-ok" onClick={downloadPkg} disabled={Object.values(pkgInc).every(v => !v)}>
                     <i className="ti ti-download" style={{ fontSize: 18 }}></i> 인수인계 보고서 다운로드
                   </button>
                 </div>
