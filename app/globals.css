@@ -51,11 +51,11 @@ h3 { font-size: 14px; font-weight: 700; letter-spacing: .8px; text-transform: up
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
 /* ====== METRIC CARD ====== */
-.metric { background: var(--card); padding: 18px 16px; border: 1px solid var(--hair); border-radius: var(--r); cursor: pointer; transition: all .2s; }
+.metric { background: var(--card); padding: 18px 16px; border: 1px solid var(--hair); border-radius: var(--r); cursor: pointer; transition: all .2s; overflow: hidden; }
 .metric:hover { border-color: var(--hair); background: var(--elevated); }
 .metric:active { transform: scale(.98); }
 .metric .up { margin-bottom: 8px; display: block; font-size: 11px; }
-.metric .val { font-size: 26px; font-weight: 800; letter-spacing: -.5px; }
+.metric .val { font-size: clamp(16px, 5vw, 26px); font-weight: 800; letter-spacing: -.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ====== CARD ====== */
 .card { background: var(--card); border: 1px solid var(--hair); border-radius: var(--r); padding: 20px; margin-bottom: 10px; transition: border-color .2s; }
@@ -358,7 +358,7 @@ select.inp { appearance: none; background-image: url("data:image/svg+xml,%3Csvg 
   .cap { font-size: 14px; }
   .metric { padding: 28px 20px; }
   .metric .up { font-size: 13px; }
-  .metric .val { font-size: 30px; }
+  .metric .val { font-size: clamp(18px, 2vw, 30px); }
   .hub-card { padding: 28px 8px 22px; gap: 12px; }
   .hub-card i { font-size: 30px; }
   .hub-card span { font-size: 14px; }
