@@ -134,6 +134,9 @@ export default function Home() {
   const [calSelected, setCalSelected] = useState(null);
   const [schView, setSchView] = useState('calendar');
   const [showPastSchedule, setShowPastSchedule] = useState(false);
+  const [schSearch, setSchSearch] = useState('');
+  const [schFilterYear, setSchFilterYear] = useState('all');
+  const [schFilterMonth, setSchFilterMonth] = useState('all');
 
   /* ── Documents (자료) ── */
   const [docList, setDocList] = useState([]);
@@ -1893,8 +1896,18 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
           {/* ── 목록 뷰 ── */}
           {schView === 'list' && (() => {
             const now = new Date();
-            const upcomingList = scheduleList.filter(s => new Date(s.date) >= now).sort((a, b) => new Date(a.date) - new Date(b.date));
-            const pastList = scheduleList.filter(s => new Date(s.date) < now).sort((a, b) => new Date(b.date) - new Date(a.date));
+            const years = [...new Set(scheduleList.map(s => new Date(s.date).getFullYear()))].sort((a, b) => b - a);
+            const keyword = schSearch.trim().toLowerCase();
+            const filtered = scheduleList.filter(s => {
+              const d = new Date(s.date);
+              if (schFilterYear !== 'all' && d.getFullYear() !== Number(schFilterYear)) return false;
+              if (schFilterMonth !== 'all' && d.getMonth() !== Number(schFilterMonth)) return false;
+              if (keyword && !s.title.toLowerCase().includes(keyword) && !(s.category || '').toLowerCase().includes(keyword) && !(s.location || '').toLowerCase().includes(keyword) && !(s.memo || '').toLowerCase().includes(keyword)) return false;
+              return true;
+            });
+            const isFiltering = schFilterYear !== 'all' || schFilterMonth !== 'all' || keyword;
+            const upcomingList = filtered.filter(s => new Date(s.date) >= now).sort((a, b) => new Date(a.date) - new Date(b.date));
+            const pastList = filtered.filter(s => new Date(s.date) < now).sort((a, b) => new Date(b.date) - new Date(a.date));
             const renderItem = (s, isPast) => (
               <div key={s.id}>
                 <div className="member-card" onClick={() => setExpandedSchedule(expandedSchedule === s.id ? null : s.id)} style={{ cursor: 'pointer', opacity: isPast ? 0.5 : 1 }}>
@@ -1932,36 +1945,75 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
             );
             return (
               <>
-                <div className="card" style={{ padding: '4px 16px' }}>
-                  {scheduleList.length === 0 ? (
+                {/* 검색 + 필터 */}
+                <div className="search-bar" style={{ marginBottom: 8 }}>
+                  <i className="ti ti-search" style={{ color: 'var(--muted)', fontSize: 16 }}></i>
+                  <input type="text" placeholder="일정 제목, 분류, 장소로 검색..." value={schSearch} onChange={e => setSchSearch(e.target.value)} style={{ flex: 1, background: 'none', border: 'none', outline: 'none', fontSize: 13, color: 'var(--fg)' }} />
+                  {schSearch && <button onClick={() => setSchSearch('')} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: 0, fontSize: 16 }}><i className="ti ti-x"></i></button>}
+                </div>
+                <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+                  <select value={schFilterYear} onChange={e => setSchFilterYear(e.target.value)} className="inp" style={{ flex: 1, padding: '6px 8px', fontSize: 12 }}>
+                    <option value="all">전체 연도</option>
+                    {years.map(y => <option key={y} value={y}>{y}년</option>)}
+                  </select>
+                  <select value={schFilterMonth} onChange={e => setSchFilterMonth(e.target.value)} className="inp" style={{ flex: 1, padding: '6px 8px', fontSize: 12 }}>
+                    <option value="all">전체 월</option>
+                    {[...Array(12)].map((_, i) => <option key={i} value={i}>{i + 1}월</option>)}
+                  </select>
+                  {isFiltering && (
+                    <button onClick={() => { setSchFilterYear('all'); setSchFilterMonth('all'); setSchSearch(''); }} style={{ padding: '6px 10px', fontSize: 12, background: 'none', border: '1px solid var(--hair)', borderRadius: 8, color: 'var(--muted)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                      <i className="ti ti-x" style={{ fontSize: 12 }}></i> 초기화
+                    </button>
+                  )}
+                </div>
+
+                {scheduleList.length === 0 ? (
+                  <div className="card" style={{ padding: '4px 16px' }}>
                     <div className="empty-state">
                       <i className="ti ti-calendar-off"></i>
                       <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>등록된 일정이 없습니다</div>
                       <div className="cap">위 &quot;추가&quot;로 첫 일정을 등록해보세요</div>
                     </div>
-                  ) : (
-                    <>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 0 4px', fontSize: 13, fontWeight: 700, color: 'var(--blue)' }}>
-                        <i className="ti ti-calendar-event" style={{ fontSize: 16 }}></i> 다가오는 일정
-                        <span style={{ fontWeight: 400, fontSize: 12, color: 'var(--muted)', marginLeft: 4 }}>{upcomingList.length}건</span>
-                      </div>
-                      {upcomingList.length === 0 ? (
-                        <div style={{ padding: '16px 0', textAlign: 'center', fontSize: 13, color: 'var(--muted)' }}>예정된 일정이 없습니다</div>
-                      ) : (
-                        upcomingList.map(s => renderItem(s, false))
-                      )}
-                    </>
-                  )}
-                </div>
-                {pastList.length > 0 && (
-                  <div className="card" style={{ padding: '4px 16px', marginTop: 12 }}>
-                    <div onClick={() => setShowPastSchedule(!showPastSchedule)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 0 4px', fontSize: 13, fontWeight: 700, color: 'var(--muted)', cursor: 'pointer', userSelect: 'none' }}>
-                      <i className="ti ti-history" style={{ fontSize: 16 }}></i> 지난 일정
-                      <span style={{ fontWeight: 400, fontSize: 12, marginLeft: 4 }}>{pastList.length}건</span>
-                      <i className="ti ti-chevron-down" style={{ fontSize: 14, marginLeft: 'auto', transition: 'transform .2s', transform: showPastSchedule ? 'rotate(180deg)' : 'rotate(0)' }}></i>
-                    </div>
-                    {showPastSchedule && pastList.map(s => renderItem(s, true))}
                   </div>
+                ) : filtered.length === 0 ? (
+                  <div className="card" style={{ padding: '4px 16px' }}>
+                    <div className="empty-state">
+                      <i className="ti ti-search-off"></i>
+                      <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>검색 결과가 없습니다</div>
+                      <div className="cap">다른 검색어나 필터를 시도해보세요</div>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {upcomingList.length > 0 && (
+                      <div className="card" style={{ padding: '4px 16px', marginBottom: 12 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 0 4px', fontSize: 13, fontWeight: 700, color: 'var(--blue)' }}>
+                          <i className="ti ti-calendar-event" style={{ fontSize: 16 }}></i> 다가오는 일정
+                          <span style={{ fontWeight: 400, fontSize: 12, color: 'var(--muted)', marginLeft: 4 }}>{upcomingList.length}건</span>
+                        </div>
+                        {upcomingList.map(s => renderItem(s, false))}
+                      </div>
+                    )}
+                    {pastList.length > 0 && (
+                      <div className="card" style={{ padding: '4px 16px' }}>
+                        <div onClick={() => setShowPastSchedule(!showPastSchedule)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 0 4px', fontSize: 13, fontWeight: 700, color: 'var(--muted)', cursor: 'pointer', userSelect: 'none' }}>
+                          <i className="ti ti-history" style={{ fontSize: 16 }}></i> 지난 일정
+                          <span style={{ fontWeight: 400, fontSize: 12, marginLeft: 4 }}>{pastList.length}건</span>
+                          <i className="ti ti-chevron-down" style={{ fontSize: 14, marginLeft: 'auto', transition: 'transform .2s', transform: showPastSchedule ? 'rotate(180deg)' : 'rotate(0)' }}></i>
+                        </div>
+                        {showPastSchedule && pastList.map(s => renderItem(s, true))}
+                      </div>
+                    )}
+                    {upcomingList.length === 0 && pastList.length === 0 && (
+                      <div className="card" style={{ padding: '4px 16px' }}>
+                        <div className="empty-state">
+                          <i className="ti ti-search-off"></i>
+                          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>검색 결과가 없습니다</div>
+                          <div className="cap">다른 검색어나 필터를 시도해보세요</div>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </>
             );
