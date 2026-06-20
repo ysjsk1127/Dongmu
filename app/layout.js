@@ -6,11 +6,12 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }) {
+  const base = process.env.NEXT_PUBLIC_BASE_PATH || '';
   return (
     <html lang="ko">
       <head>
-        <link rel="preload" href="/fonts/tabler-icons.woff2?v3.6.0" as="font" type="font/woff2" crossOrigin="anonymous" />
-        <link rel="stylesheet" href="/fonts/tabler-icons.css" />
+        <link rel="preload" href={`${base}/fonts/tabler-icons.woff2?v3.6.0`} as="font" type="font/woff2" crossOrigin="anonymous" />
+        <link rel="stylesheet" href={`${base}/fonts/tabler-icons.css`} />
       </head>
       <body>{children}</body>
     </html>
