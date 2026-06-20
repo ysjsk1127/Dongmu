@@ -133,6 +133,7 @@ export default function Home() {
   const [calMonth, setCalMonth] = useState(0);
   const [calSelected, setCalSelected] = useState(null);
   const [schView, setSchView] = useState('calendar');
+  const [showPastSchedule, setShowPastSchedule] = useState(false);
 
   /* ── Documents (자료) ── */
   const [docList, setDocList] = useState([]);
@@ -1890,56 +1891,81 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
           })()}
 
           {/* ── 목록 뷰 ── */}
-          {schView === 'list' && (
-            <div className="card" style={{ padding: '4px 16px' }}>
-              {scheduleList.length === 0 ? (
-                <div className="empty-state">
-                  <i className="ti ti-calendar-off"></i>
-                  <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>등록된 일정이 없습니다</div>
-                  <div className="cap">위 &quot;추가&quot;로 첫 일정을 등록해보세요</div>
+          {schView === 'list' && (() => {
+            const now = new Date();
+            const upcomingList = scheduleList.filter(s => new Date(s.date) >= now).sort((a, b) => new Date(a.date) - new Date(b.date));
+            const pastList = scheduleList.filter(s => new Date(s.date) < now).sort((a, b) => new Date(b.date) - new Date(a.date));
+            const renderItem = (s, isPast) => (
+              <div key={s.id}>
+                <div className="member-card" onClick={() => setExpandedSchedule(expandedSchedule === s.id ? null : s.id)} style={{ cursor: 'pointer', opacity: isPast ? 0.5 : 1 }}>
+                  <div className="member-avatar" style={{ background: s.color, fontSize: 18 }}><i className="ti ti-calendar-event"></i></div>
+                  <div className="member-info">
+                    <div className="member-name">{s.title} {isPast && <span className="cap">· 종료</span>}</div>
+                    <div className="member-detail">{s.allDay ? formatScheduleDate(s.date).split(' ')[0] : formatScheduleDate(s.date)} · {s.category}</div>
+                  </div>
+                  <div style={{ color: 'var(--muted)', fontSize: 16, transition: 'transform .2s', transform: expandedSchedule === s.id ? 'rotate(180deg)' : 'rotate(0)' }}>
+                    <i className="ti ti-chevron-down"></i>
+                  </div>
                 </div>
-              ) : (
-                scheduleList.map(s => {
-                  const past = new Date(s.date) < new Date();
-                  return (
-                    <div key={s.id}>
-                      <div className="member-card" onClick={() => setExpandedSchedule(expandedSchedule === s.id ? null : s.id)} style={{ cursor: 'pointer', opacity: past ? 0.5 : 1 }}>
-                        <div className="member-avatar" style={{ background: s.color, fontSize: 18 }}><i className="ti ti-calendar-event"></i></div>
-                        <div className="member-info">
-                          <div className="member-name">{s.title} {past && <span className="cap">· 종료</span>}</div>
-                          <div className="member-detail">{s.allDay ? formatScheduleDate(s.date).split(' ')[0] : formatScheduleDate(s.date)} · {s.category}</div>
-                        </div>
-                        <div style={{ color: 'var(--muted)', fontSize: 16, transition: 'transform .2s', transform: expandedSchedule === s.id ? 'rotate(180deg)' : 'rotate(0)' }}>
-                          <i className="ti ti-chevron-down"></i>
-                        </div>
-                      </div>
-                      {expandedSchedule === s.id && (
-                        <div style={{ padding: '8px 16px 12px', marginTop: -4, marginBottom: 8, background: 'var(--card)', borderRadius: '0 0 12px 12px', border: '1px solid var(--hair)', borderTop: 'none', opacity: past ? 0.5 : 1 }}>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', fontSize: 13 }}>
-                            <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>일정</span><div style={{ fontWeight: 600 }}>{s.title}</div></div>
-                            <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>분류</span><div>{s.category}</div></div>
-                            <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>날짜</span><div>{s.allDay ? formatScheduleDate(s.date).split(' ')[0] : formatScheduleDate(s.date)}</div></div>
-                            {s.location && <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>장소</span><div>{s.location}</div></div>}
-                          </div>
-                          {s.memo && (
-                            <div style={{ marginTop: 8, padding: '8px 10px', background: 'var(--bg)', borderRadius: 8, fontSize: 13 }}>
-                              <span style={{ color: 'var(--muted)', fontSize: 11, display: 'block', marginBottom: 2 }}>메모</span>
-                              <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{s.memo}</div>
-                            </div>
-                          )}
-                          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
-                            <button onClick={(e) => { e.stopPropagation(); setConfirmDel2({ type: 'schedule', id: s.id, name: s.title }); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 14px', fontSize: 12, color: 'var(--warn)', background: 'none', border: '1px solid var(--warn)', borderRadius: 8, cursor: 'pointer' }}>
-                              <i className="ti ti-trash"></i>삭제
-                            </button>
-                          </div>
-                        </div>
-                      )}
+                {expandedSchedule === s.id && (
+                  <div style={{ padding: '8px 16px 12px', marginTop: -4, marginBottom: 8, background: 'var(--card)', borderRadius: '0 0 12px 12px', border: '1px solid var(--hair)', borderTop: 'none', opacity: isPast ? 0.5 : 1 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', fontSize: 13 }}>
+                      <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>일정</span><div style={{ fontWeight: 600 }}>{s.title}</div></div>
+                      <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>분류</span><div>{s.category}</div></div>
+                      <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>날짜</span><div>{s.allDay ? formatScheduleDate(s.date).split(' ')[0] : formatScheduleDate(s.date)}</div></div>
+                      {s.location && <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>장소</span><div>{s.location}</div></div>}
                     </div>
-                  );
-                })
-              )}
-            </div>
-          )}
+                    {s.memo && (
+                      <div style={{ marginTop: 8, padding: '8px 10px', background: 'var(--bg)', borderRadius: 8, fontSize: 13 }}>
+                        <span style={{ color: 'var(--muted)', fontSize: 11, display: 'block', marginBottom: 2 }}>메모</span>
+                        <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{s.memo}</div>
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                      <button onClick={(e) => { e.stopPropagation(); setConfirmDel2({ type: 'schedule', id: s.id, name: s.title }); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 14px', fontSize: 12, color: 'var(--warn)', background: 'none', border: '1px solid var(--warn)', borderRadius: 8, cursor: 'pointer' }}>
+                        <i className="ti ti-trash"></i>삭제
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+            return (
+              <>
+                <div className="card" style={{ padding: '4px 16px' }}>
+                  {scheduleList.length === 0 ? (
+                    <div className="empty-state">
+                      <i className="ti ti-calendar-off"></i>
+                      <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>등록된 일정이 없습니다</div>
+                      <div className="cap">위 &quot;추가&quot;로 첫 일정을 등록해보세요</div>
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 0 4px', fontSize: 13, fontWeight: 700, color: 'var(--blue)' }}>
+                        <i className="ti ti-calendar-event" style={{ fontSize: 16 }}></i> 다가오는 일정
+                        <span style={{ fontWeight: 400, fontSize: 12, color: 'var(--muted)', marginLeft: 4 }}>{upcomingList.length}건</span>
+                      </div>
+                      {upcomingList.length === 0 ? (
+                        <div style={{ padding: '16px 0', textAlign: 'center', fontSize: 13, color: 'var(--muted)' }}>예정된 일정이 없습니다</div>
+                      ) : (
+                        upcomingList.map(s => renderItem(s, false))
+                      )}
+                    </>
+                  )}
+                </div>
+                {pastList.length > 0 && (
+                  <div className="card" style={{ padding: '4px 16px', marginTop: 12 }}>
+                    <div onClick={() => setShowPastSchedule(!showPastSchedule)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 0 4px', fontSize: 13, fontWeight: 700, color: 'var(--muted)', cursor: 'pointer', userSelect: 'none' }}>
+                      <i className="ti ti-history" style={{ fontSize: 16 }}></i> 지난 일정
+                      <span style={{ fontWeight: 400, fontSize: 12, marginLeft: 4 }}>{pastList.length}건</span>
+                      <i className="ti ti-chevron-down" style={{ fontSize: 14, marginLeft: 'auto', transition: 'transform .2s', transform: showPastSchedule ? 'rotate(180deg)' : 'rotate(0)' }}></i>
+                    </div>
+                    {showPastSchedule && pastList.map(s => renderItem(s, true))}
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
 
         {/* ════════ DRIVE (자료 관리) ════════ */}
