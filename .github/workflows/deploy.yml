@@ -1,0 +1,46 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    env:
+      NEXT_PUBLIC_FB_API_KEY: AIzaSyDEeMsy6dV5FTUCazGR8hrFnIktjuCh_uE
+      NEXT_PUBLIC_FB_AUTH_DOMAIN: dongmu-bfa45.firebaseapp.com
+      NEXT_PUBLIC_FB_DB_URL: https://dongmu-bfa45-default-rtdb.asia-southeast1.firebasedatabase.app
+      NEXT_PUBLIC_FB_PROJECT_ID: dongmu-bfa45
+      NEXT_PUBLIC_FB_STORAGE: dongmu-bfa45.firebasestorage.app
+      NEXT_PUBLIC_FB_SENDER_ID: "106361450639"
+      NEXT_PUBLIC_FB_APP_ID: "1:106361450639:web:453abce8d533a4dda400fa"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: out
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
