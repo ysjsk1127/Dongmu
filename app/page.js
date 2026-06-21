@@ -1946,22 +1946,29 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
             return (
               <>
                 {/* 검색 + 필터 */}
-                <div className="search-bar" style={{ marginBottom: 8 }}>
-                  <i className="ti ti-search" style={{ color: 'var(--muted)', fontSize: 16 }}></i>
-                  <input type="text" placeholder="일정 제목, 분류, 장소로 검색..." value={schSearch} onChange={e => setSchSearch(e.target.value)} style={{ flex: 1, background: 'none', border: 'none', outline: 'none', fontSize: 13, color: 'var(--fg)' }} />
-                  {schSearch && <button onClick={() => setSchSearch('')} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: 0, fontSize: 16 }}><i className="ti ti-x"></i></button>}
+                <div className="search-bar" style={{ marginBottom: 10 }}>
+                  <div className="search-wrap" style={{ flex: 1 }}>
+                    <i className="ti ti-search"></i>
+                    <input
+                      className="inp"
+                      placeholder="일정 제목, 분류, 장소로 검색..."
+                      value={schSearch}
+                      onChange={e => setSchSearch(e.target.value)}
+                    />
+                  </div>
+                  {schSearch && <button onClick={() => setSchSearch('')} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: '0 4px', fontSize: 18 }}><i className="ti ti-x"></i></button>}
                 </div>
                 <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
-                  <select value={schFilterYear} onChange={e => setSchFilterYear(e.target.value)} className="inp" style={{ flex: 1, padding: '6px 8px', fontSize: 12 }}>
+                  <select value={schFilterYear} onChange={e => setSchFilterYear(e.target.value)} className="inp" style={{ flex: 1 }}>
                     <option value="all">전체 연도</option>
                     {years.map(y => <option key={y} value={y}>{y}년</option>)}
                   </select>
-                  <select value={schFilterMonth} onChange={e => setSchFilterMonth(e.target.value)} className="inp" style={{ flex: 1, padding: '6px 8px', fontSize: 12 }}>
+                  <select value={schFilterMonth} onChange={e => setSchFilterMonth(e.target.value)} className="inp" style={{ flex: 1 }}>
                     <option value="all">전체 월</option>
                     {[...Array(12)].map((_, i) => <option key={i} value={i}>{i + 1}월</option>)}
                   </select>
                   {isFiltering && (
-                    <button onClick={() => { setSchFilterYear('all'); setSchFilterMonth('all'); setSchSearch(''); }} style={{ padding: '6px 10px', fontSize: 12, background: 'none', border: '1px solid var(--hair)', borderRadius: 8, color: 'var(--muted)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                    <button onClick={() => { setSchFilterYear('all'); setSchFilterMonth('all'); setSchSearch(''); }} className="btn btn-ghost btn-sm" style={{ whiteSpace: 'nowrap' }}>
                       <i className="ti ti-x" style={{ fontSize: 12 }}></i> 초기화
                     </button>
                   )}
