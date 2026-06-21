@@ -2692,8 +2692,10 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
             const sortedKeys = Object.keys(grouped).sort();
             const lastN = sortedKeys.slice(-8);
             const maxVal = Math.max(...lastN.map(k => Math.max(grouped[k].income, grouped[k].expense)), 1);
-            const chartH = 80;
-            const barW = lastN.length > 0 ? Math.min(22, Math.floor(220 / lastN.length / 2)) : 16;
+            const chartH = 120;
+            const barGap = 48;
+            const barW = 18;
+            const svgW = Math.max(lastN.length * barGap + 20, 200);
             return (
               <>
                 <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
@@ -2730,21 +2732,22 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                         <span style={{ fontSize: 11, color: 'var(--ok)' }}><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: 'var(--ok)', marginRight: 3, verticalAlign: 1 }}></span>수입</span>
                         <span style={{ fontSize: 11, color: 'var(--warn)' }}><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: 'var(--warn)', marginRight: 3, verticalAlign: 1 }}></span>지출</span>
                       </div>
-                      <svg viewBox={`0 0 ${Math.max(lastN.length * (barW * 2 + 12) + 20, 160)} ${chartH + 28}`} style={{ width: '100%', height: 'auto', maxHeight: 110 }}>
+                      <svg viewBox={`0 0 ${svgW} ${chartH + 28}`} style={{ width: '100%', height: 'auto' }}>
+                        <style>{`svg rect.chart-bar:hover { opacity: 1; filter: brightness(1.2); } svg rect.chart-bar { transition: opacity 0.15s, filter 0.15s; cursor: pointer; }`}</style>
                         {lastN.map((k, i) => {
                           const g = grouped[k];
                           const ih = Math.max((g.income / maxVal) * chartH, g.income > 0 ? 4 : 0);
                           const eh = Math.max((g.expense / maxVal) * chartH, g.expense > 0 ? 4 : 0);
-                          const x = i * (barW * 2 + 12) + 10;
+                          const x = i * barGap + 10;
                           return (
                             <g key={k}>
-                              <rect x={x} y={chartH - ih} width={barW} height={ih} rx={3} fill="#22c55e" opacity={0.85} />
-                              <rect x={x + barW + 2} y={chartH - eh} width={barW} height={eh} rx={3} fill="#f59e0b" opacity={0.85} />
+                              <rect className="chart-bar" x={x} y={chartH - ih} width={barW} height={ih} rx={4} fill="#22c55e" opacity={0.85}><title>{`${k} 수입: ₩${formatExpAmount(g.income)}`}</title></rect>
+                              <rect className="chart-bar" x={x + barW + 2} y={chartH - eh} width={barW} height={eh} rx={4} fill="#f59e0b" opacity={0.85}><title>{`${k} 지출: ₩${formatExpAmount(g.expense)}`}</title></rect>
                               <text x={x + barW} y={chartH + 14} textAnchor="middle" fill="var(--muted)" fontSize={9}>{k.length > 7 ? k.slice(-5) : k}</text>
                             </g>
                           );
                         })}
-                        <line x1={0} y1={chartH} x2={lastN.length * (barW * 2 + 12) + 20} y2={chartH} stroke="var(--hair)" strokeWidth={1} />
+                        <line x1={0} y1={chartH} x2={svgW} y2={chartH} stroke="var(--hair)" strokeWidth={1} />
                       </svg>
                     </>
                   ) : (
@@ -2826,7 +2829,10 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
             const sortedKeys = Object.keys(byPeriod).sort();
             const lastN = sortedKeys.slice(-8);
             const maxCount = Math.max(...lastN.map(k => byPeriod[k].length), 1);
-            const chartH = 70;
+            const chartH = 100;
+            const mBarGap = 50;
+            const mBarW = 28;
+            const mSvgW = Math.max(lastN.length * mBarGap + 20, 200);
             const roleCount = {};
             membersList.forEach(m => { const r = m.role || '부원'; roleCount[r] = (roleCount[r] || 0) + 1; });
             const roles = Object.entries(roleCount).sort((a, b) => b[1] - a[1]);
@@ -2853,20 +2859,20 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                 <div className="card" style={{ marginBottom: 10 }}>
                   <h3 style={{ marginBottom: 8 }}>가입 추이</h3>
                   {lastN.length > 0 ? (
-                    <svg viewBox={`0 0 ${Math.max(lastN.length * 36 + 20, 160)} ${chartH + 30}`} style={{ width: '100%', height: 'auto', maxHeight: 120 }}>
+                    <svg viewBox={`0 0 ${mSvgW} ${chartH + 28}`} style={{ width: '100%', height: 'auto' }}>
+                      <style>{`svg rect.chart-bar:hover { opacity: 1; filter: brightness(1.2); } svg rect.chart-bar { transition: opacity 0.15s, filter 0.15s; cursor: pointer; }`}</style>
                       {lastN.map((k, i) => {
                         const cnt = byPeriod[k].length;
                         const h = Math.max((cnt / maxCount) * chartH, cnt > 0 ? 6 : 0);
-                        const x = i * 36 + 10;
+                        const x = i * mBarGap + 10;
                         return (
                           <g key={k}>
-                            <rect x={x} y={chartH - h} width={22} height={h} rx={3} fill="#4d8ef7" opacity={0.85} />
-                            <text x={x + 11} y={chartH - h - 6} textAnchor="middle" fill="var(--ink)" fontSize={10} fontWeight={700}>{cnt}</text>
-                            <text x={x + 11} y={chartH + 14} textAnchor="middle" fill="var(--muted)" fontSize={9}>{k.length > 7 ? k.slice(-5) : k}</text>
+                            <rect className="chart-bar" x={x} y={chartH - h} width={mBarW} height={h} rx={4} fill="#4d8ef7" opacity={0.85}><title>{`${k}: ${cnt}명`}</title></rect>
+                            <text x={x + mBarW / 2} y={chartH + 14} textAnchor="middle" fill="var(--muted)" fontSize={9}>{k.length > 7 ? k.slice(-5) : k}</text>
                           </g>
                         );
                       })}
-                      <line x1={0} y1={chartH} x2={lastN.length * 36 + 20} y2={chartH} stroke="var(--hair)" strokeWidth={1} />
+                      <line x1={0} y1={chartH} x2={mSvgW} y2={chartH} stroke="var(--hair)" strokeWidth={1} />
                     </svg>
                   ) : (
                     <div className="cap" style={{ textAlign: 'center', padding: 24 }}>부원 데이터를 등록하면 추이 그래프가 나타납니다.</div>
@@ -2922,7 +2928,10 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
             const sortedKeys = Object.keys(months).sort();
             const lastN = sortedKeys.slice(-8);
             const maxCount = Math.max(...lastN.map(k => months[k].length), 1);
-            const chartH = 70;
+            const chartH = 100;
+            const sBarGap = 50;
+            const sBarW = 28;
+            const sSvgW = Math.max(lastN.length * sBarGap + 20, 200);
             const catCount = {};
             scheduleList.forEach(s => { const c = s.category || '기타'; catCount[c] = (catCount[c] || 0) + 1; });
             const cats = Object.entries(catCount).sort((a, b) => b[1] - a[1]);
@@ -2946,20 +2955,20 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                 <div className="card" style={{ marginBottom: 10 }}>
                   <h3 style={{ marginBottom: 8 }}>월별 일정 수</h3>
                   {lastN.length > 0 ? (
-                    <svg viewBox={`0 0 ${Math.max(lastN.length * 36 + 20, 160)} ${chartH + 30}`} style={{ width: '100%', height: 'auto', maxHeight: 120 }}>
+                    <svg viewBox={`0 0 ${sSvgW} ${chartH + 28}`} style={{ width: '100%', height: 'auto' }}>
+                      <style>{`svg rect.chart-bar:hover { opacity: 1; filter: brightness(1.2); } svg rect.chart-bar { transition: opacity 0.15s, filter 0.15s; cursor: pointer; }`}</style>
                       {lastN.map((k, i) => {
                         const cnt = months[k].length;
                         const h = Math.max((cnt / maxCount) * chartH, cnt > 0 ? 6 : 0);
-                        const x = i * 36 + 10;
+                        const x = i * sBarGap + 10;
                         return (
                           <g key={k}>
-                            <rect x={x} y={chartH - h} width={22} height={h} rx={3} fill="#22c55e" opacity={0.85} />
-                            <text x={x + 11} y={chartH - h - 6} textAnchor="middle" fill="var(--ink)" fontSize={10} fontWeight={700}>{cnt}</text>
-                            <text x={x + 11} y={chartH + 14} textAnchor="middle" fill="var(--muted)" fontSize={9}>{k.slice(-2)}월</text>
+                            <rect className="chart-bar" x={x} y={chartH - h} width={sBarW} height={h} rx={4} fill="#22c55e" opacity={0.85}><title>{`${k.slice(-2)}월: ${cnt}건`}</title></rect>
+                            <text x={x + sBarW / 2} y={chartH + 14} textAnchor="middle" fill="var(--muted)" fontSize={9}>{k.slice(-2)}월</text>
                           </g>
                         );
                       })}
-                      <line x1={0} y1={chartH} x2={lastN.length * 36 + 20} y2={chartH} stroke="var(--hair)" strokeWidth={1} />
+                      <line x1={0} y1={chartH} x2={sSvgW} y2={chartH} stroke="var(--hair)" strokeWidth={1} />
                     </svg>
                   ) : (
                     <div className="cap" style={{ textAlign: 'center', padding: 24 }}>일정을 등록하면 추이 그래프가 나타납니다.</div>
@@ -3022,7 +3031,10 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
             const sortedKeys = Object.keys(byPeriod).sort();
             const lastN = sortedKeys.slice(-8);
             const maxVal = Math.max(...lastN.map(k => byPeriod[k].total), 1);
-            const chartH = 70;
+            const chartH = 100;
+            const spBarGap = 50;
+            const spBarW = 28;
+            const spSvgW = Math.max(lastN.length * spBarGap + 20, 200);
             const typeCount = {};
             sponsorList.forEach(s => { const t = s.type || '기타'; typeCount[t] = (typeCount[t] || 0) + 1; });
             const types = Object.entries(typeCount).sort((a, b) => b[1] - a[1]);
@@ -3050,19 +3062,19 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                 <div className="card" style={{ marginBottom: 10 }}>
                   <h3 style={{ marginBottom: 8 }}>후원금 추이</h3>
                   {lastN.length > 0 ? (
-                    <svg viewBox={`0 0 ${Math.max(lastN.length * 36 + 20, 160)} ${chartH + 30}`} style={{ width: '100%', height: 'auto', maxHeight: 120 }}>
+                    <svg viewBox={`0 0 ${spSvgW} ${chartH + 28}`} style={{ width: '100%', height: 'auto' }}>
+                      <style>{`svg rect.chart-bar:hover { opacity: 1; filter: brightness(1.2); } svg rect.chart-bar { transition: opacity 0.15s, filter 0.15s; cursor: pointer; }`}</style>
                       {lastN.map((k, i) => {
                         const h = Math.max((byPeriod[k].total / maxVal) * chartH, byPeriod[k].total > 0 ? 6 : 0);
-                        const x = i * 36 + 10;
+                        const x = i * spBarGap + 10;
                         return (
                           <g key={k}>
-                            <rect x={x} y={chartH - h} width={22} height={h} rx={3} fill="#ef4444" opacity={0.8} />
-                            <text x={x + 11} y={chartH - h - 6} textAnchor="middle" fill="var(--ink)" fontSize={9} fontWeight={700}>₩{formatAmount(byPeriod[k].total)}</text>
-                            <text x={x + 11} y={chartH + 14} textAnchor="middle" fill="var(--muted)" fontSize={9}>{k.length > 7 ? k.slice(-5) : k}</text>
+                            <rect className="chart-bar" x={x} y={chartH - h} width={spBarW} height={h} rx={4} fill="#ef4444" opacity={0.8}><title>{`${k}: ₩${formatAmount(byPeriod[k].total)} (${byPeriod[k].count}건)`}</title></rect>
+                            <text x={x + spBarW / 2} y={chartH + 14} textAnchor="middle" fill="var(--muted)" fontSize={9}>{k.length > 7 ? k.slice(-5) : k}</text>
                           </g>
                         );
                       })}
-                      <line x1={0} y1={chartH} x2={lastN.length * 36 + 20} y2={chartH} stroke="var(--hair)" strokeWidth={1} />
+                      <line x1={0} y1={chartH} x2={spSvgW} y2={chartH} stroke="var(--hair)" strokeWidth={1} />
                     </svg>
                   ) : (
                     <div className="cap" style={{ textAlign: 'center', padding: 24 }}>후원 데이터를 등록하면 추이 그래프가 나타납니다.</div>
