@@ -177,7 +177,9 @@ export default function Home() {
   const [almCompany, setAlmCompany] = useState('');
   const [almPosition, setAlmPosition] = useState('');
   const [almPhone, setAlmPhone] = useState('');
+  const [almEmail, setAlmEmail] = useState('');
   const [almMentoring, setAlmMentoring] = useState(false);
+  const [expandedAlumni, setExpandedAlumni] = useState(null);
 
   /* ── 달력 일정 펼치기 ── */
   const [expandedCalSch, setExpandedCalSch] = useState(null);
@@ -658,11 +660,12 @@ export default function Home() {
       company: almCompany,
       position: almPosition,
       phone: almPhone,
+      email: almEmail,
       mentoring: almMentoring,
     });
     if (!res.success) { showToast(res.error); return; }
     showToast('졸업 선배가 등록되었습니다');
-    setAlmName(''); setAlmGen(''); setAlmYear(''); setAlmCompany(''); setAlmPosition(''); setAlmPhone(''); setAlmMentoring(false);
+    setAlmName(''); setAlmGen(''); setAlmYear(''); setAlmCompany(''); setAlmPosition(''); setAlmPhone(''); setAlmEmail(''); setAlmMentoring(false);
     setAlmAdd(false);
     refreshData();
   }
@@ -2316,6 +2319,7 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
               <div className="inp-g"><label className="inp-l">회사 / 소속</label><input className="inp" placeholder="예: 한국항공우주연구원" value={almCompany} onChange={e => setAlmCompany(e.target.value)} /></div>
               <div className="inp-g"><label className="inp-l">직책</label><input className="inp" placeholder="예: 선임연구원" value={almPosition} onChange={e => setAlmPosition(e.target.value)} /></div>
               <div className="inp-g"><label className="inp-l">전화번호</label><input className="inp" placeholder="010-0000-0000" value={almPhone} onChange={e => setAlmPhone(formatPhone(e.target.value))} /></div>
+              <div className="inp-g"><label className="inp-l">이메일</label><input className="inp" placeholder="example@email.com" value={almEmail} onChange={e => setAlmEmail(e.target.value)} /></div>
               <div className="inp-g">
                 <label className="inp-l">멘토링 / 후원 의향</label>
                 <div className="check-row" onClick={() => setAlmMentoring(v => !v)}>
@@ -2336,16 +2340,37 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
               </div>
             ) : (
               alumniList.map(a => (
-                <div className="member-card" key={a.id}>
-                  <div className="member-avatar" style={{ background: 'var(--google)' }}>{a.name.charAt(0)}</div>
-                  <div className="member-info">
-                    <div className="member-name">{a.name} {a.mentoring && <span className="badge badge-blue" style={{ height: 18, fontSize: 9, padding: '0 6px', verticalAlign: 1 }}>멘토</span>}</div>
-                    <div className="member-detail">{a.generation}{a.graduationYear ? ` · ${a.graduationYear} 졸업` : ''}</div>
-                    <div className="member-detail">{a.company}{a.position ? ` · ${a.position}` : ''}</div>
+                <div key={a.id}>
+                  <div className="member-card" onClick={() => setExpandedAlumni(expandedAlumni === a.id ? null : a.id)} style={{ cursor: 'pointer' }}>
+                    <div className="member-avatar" style={{ background: 'var(--google)' }}>{a.name.charAt(0)}</div>
+                    <div className="member-info">
+                      <div className="member-name">{a.name} {a.mentoring && <span className="badge badge-blue" style={{ height: 18, fontSize: 9, padding: '0 6px', verticalAlign: 1 }}>멘토</span>}</div>
+                      <div className="member-detail">{a.generation}{a.graduationYear ? ` · ${a.graduationYear} 졸업` : ''}</div>
+                      <div className="member-detail">{a.company}{a.position ? ` · ${a.position}` : ''}</div>
+                    </div>
+                    <div style={{ color: 'var(--muted)', fontSize: 16, transition: 'transform .2s', transform: expandedAlumni === a.id ? 'rotate(180deg)' : 'rotate(0)' }}>
+                      <i className="ti ti-chevron-down"></i>
+                    </div>
                   </div>
-                  <div className="member-actions">
-                    <button className="member-del" onClick={() => setConfirmDel2({ type: 'alumni', id: a.id, name: a.name })}><i className="ti ti-trash"></i></button>
-                  </div>
+                  {expandedAlumni === a.id && (
+                    <div style={{ padding: '8px 16px 12px', marginTop: -4, marginBottom: 8, background: 'var(--card)', borderRadius: '0 0 12px 12px', border: '1px solid var(--hair)', borderTop: 'none' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', fontSize: 13 }}>
+                        <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>이름</span><div style={{ fontWeight: 600 }}>{a.name}</div></div>
+                        <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>기수</span><div>{a.generation || '-'}</div></div>
+                        <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>졸업 연도</span><div>{a.graduationYear ? `${a.graduationYear}년` : '-'}</div></div>
+                        <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>멘토링 의향</span><div style={{ color: a.mentoring ? 'var(--blue)' : 'var(--muted)' }}>{a.mentoring ? '가능' : '없음'}</div></div>
+                        <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>회사 / 소속</span><div>{a.company || '-'}</div></div>
+                        <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>직책</span><div>{a.position || '-'}</div></div>
+                        <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>전화번호</span><div>{a.phone || '-'}</div></div>
+                        <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>이메일</span><div>{a.email || '-'}</div></div>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                        <button onClick={(e) => { e.stopPropagation(); setConfirmDel2({ type: 'alumni', id: a.id, name: a.name }); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 14px', fontSize: 12, color: 'var(--warn)', background: 'none', border: '1px solid var(--warn)', borderRadius: 8, cursor: 'pointer' }}>
+                          <i className="ti ti-trash"></i>삭제
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))
             )}
