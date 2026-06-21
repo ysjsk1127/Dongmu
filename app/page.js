@@ -2703,7 +2703,7 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
               } else if (rptPeriod === 'month') {
                 key = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}`;
               } else if (rptPeriod === 'semester') {
-                key = `${d.getFullYear()}-${d.getMonth() < 6 ? '1' : '2'}학기`;
+                key = `${d.getFullYear()}-${d.getMonth() < 6 ? '1' : '2'}`;
               } else {
                 key = `${d.getFullYear()}`;
               }
@@ -2853,7 +2853,7 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
               const d = new Date(m.joinedAt || m.createdAt);
               let key;
               if (rptPeriod === 'month' || rptPeriod === 'week') key = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}`;
-              else if (rptPeriod === 'semester') key = `${d.getFullYear()}-${d.getMonth() < 6 ? '1' : '2'}학기`;
+              else if (rptPeriod === 'semester') key = `${d.getFullYear()}-${d.getMonth() < 6 ? '1' : '2'}`;
               else key = `${d.getFullYear()}`;
               if (!byPeriod[key]) byPeriod[key] = [];
               byPeriod[key].push(m);
