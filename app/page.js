@@ -2763,7 +2763,7 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                           return (
                             <g key={v}>
                               <line x1={yAW} y1={y} x2={CW} y2={y} stroke="var(--hair)" strokeWidth={0.5} opacity={0.6} />
-                              <text x={yAW - 4} y={y + 4} textAnchor="end" fill="var(--muted)" fontSize={11}>{formatExpAmount(v)}</text>
+                              <text x={yAW - 4} y={y + 4} textAnchor="end" fill="var(--muted)" fontSize={10}>{formatExpAmount(v)}</text>
                             </g>
                           );
                         })}
@@ -2776,7 +2776,7 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                             <g key={k}>
                               <rect className="chart-bar" x={x} y={TP + CH - ih} width={bW} height={ih} rx={4} fill="#22c55e" opacity={0.85} onMouseEnter={e => showTip(e, `${k} 수입: ₩${formatExpAmount(g.income)}`)} onMouseLeave={hideTip} onTouchStart={e => showTip(e, `${k} 수입: ₩${formatExpAmount(g.income)}`)} onTouchEnd={() => setTimeout(hideTip, 1500)} />
                               <rect className="chart-bar" x={x + bW + 2} y={TP + CH - eh} width={bW} height={eh} rx={4} fill="#f59e0b" opacity={0.85} onMouseEnter={e => showTip(e, `${k} 지출: ₩${formatExpAmount(g.expense)}`)} onMouseLeave={hideTip} onTouchStart={e => showTip(e, `${k} 지출: ₩${formatExpAmount(g.expense)}`)} onTouchEnd={() => setTimeout(hideTip, 1500)} />
-                              <text x={x + bW} y={TP + CH + 20} textAnchor="middle" fill="var(--muted)" fontSize={12}>{k.length > 7 ? k.slice(-5) : k}</text>
+                              <text x={x + bW} y={TP + CH + 20} textAnchor="middle" fill="var(--muted)" fontSize={10}>{k.length > 7 ? k.slice(-5) : k}</text>
                             </g>
                           );
                         })}
@@ -2789,42 +2789,24 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                 </div>
                 <div className="card" style={{ marginBottom: 10 }}>
                   <h3 style={{ marginBottom: 8 }}>항목별 지출</h3>
-                  {expTotal > 0 ? (() => {
-                    const items = expByCategory.filter(c => c.total > 0);
-                    const circ = 2 * Math.PI * 35;
-                    let offset = 0;
-                    return (
-                      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          {items.map((c, i) => {
-                            const pct = Math.round((c.total / expTotal) * 100);
-                            return (
-                              <div key={i} style={{ marginBottom: 8 }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 3, whiteSpace: 'nowrap' }}>
-                                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: PIE_COLORS[i % PIE_COLORS.length], flexShrink: 0 }}></span>
-                                    {c.category}
-                                  </span>
-                                  <span style={{ fontWeight: 700 }}>{pct}%</span>
-                                </div>
-                                <div style={{ height: 6, background: 'var(--elevated)', borderRadius: 3, overflow: 'hidden' }}>
-                                  <div style={{ height: '100%', width: `${pct}%`, background: PIE_COLORS[i % PIE_COLORS.length], borderRadius: 3 }}></div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                        <svg viewBox="0 0 100 100" style={{ width: 76, height: 76, flexShrink: 0 }}>
-                          {items.map((c, i) => {
-                            const seg = (c.total / expTotal) * circ;
-                            const el = <circle key={i} cx={50} cy={50} r={35} fill="none" stroke={PIE_COLORS[i % PIE_COLORS.length]} strokeWidth={18} strokeDasharray={`${seg} ${circ - seg}`} strokeDashoffset={-offset} transform="rotate(-90 50 50)" />;
-                            offset += seg;
-                            return el;
-                          })}
-                        </svg>
-                      </div>
-                    );
-                  })() : (
+                  {expTotal > 0 ? (
+                    <div>
+                      {expByCategory.filter(c => c.total > 0).map((c, i) => {
+                        const pct = Math.round((c.total / expTotal) * 100);
+                        return (
+                          <div key={i} style={{ marginBottom: 10 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 4 }}>
+                              <span>{c.category}</span>
+                              <span style={{ fontWeight: 700 }}>₩{formatExpAmount(c.total)} ({pct}%)</span>
+                            </div>
+                            <div style={{ height: 8, background: 'var(--elevated)', borderRadius: 4, overflow: 'hidden' }}>
+                              <div style={{ height: '100%', width: `${pct}%`, background: PIE_COLORS[i % PIE_COLORS.length], borderRadius: 4, transition: 'width .3s' }}></div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
                     <div className="cap" style={{ textAlign: 'center', padding: 20 }}>지출 데이터가 없습니다.</div>
                   )}
                 </div>
@@ -2917,7 +2899,7 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                         return (
                           <g key={v}>
                             <line x1={yAW} y1={y} x2={CW} y2={y} stroke="var(--hair)" strokeWidth={0.5} opacity={0.6} />
-                            <text x={yAW - 4} y={y + 4} textAnchor="end" fill="var(--muted)" fontSize={11}>{v}</text>
+                            <text x={yAW - 4} y={y + 4} textAnchor="end" fill="var(--muted)" fontSize={10}>{v}</text>
                           </g>
                         );
                       })}
@@ -2928,7 +2910,7 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                         return (
                           <g key={k}>
                             <rect className="chart-bar" x={x} y={TP + CH - h} width={bW} height={h} rx={4} fill="#4d8ef7" opacity={0.85} onMouseEnter={e => showTip(e, `${k}: ${cnt}명`)} onMouseLeave={hideTip} onTouchStart={e => showTip(e, `${k}: ${cnt}명`)} onTouchEnd={() => setTimeout(hideTip, 1500)} />
-                            <text x={x + bW / 2} y={TP + CH + 20} textAnchor="middle" fill="var(--muted)" fontSize={12}>{k.length > 7 ? k.slice(-5) : k}</text>
+                            <text x={x + bW / 2} y={TP + CH + 20} textAnchor="middle" fill="var(--muted)" fontSize={10}>{k.length > 7 ? k.slice(-5) : k}</text>
                           </g>
                         );
                       })}
@@ -2940,41 +2922,20 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                 </div>
                 <div className="card" style={{ marginBottom: 10 }}>
                   <h3 style={{ marginBottom: 8 }}>역할 분포</h3>
-                  {roles.length > 0 ? (() => {
-                    const circ = 2 * Math.PI * 35;
-                    let offset = 0;
+                  {roles.map(([role, cnt], i) => {
+                    const pct = Math.round((cnt / memC) * 100);
                     return (
-                      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          {roles.map(([role, cnt], i) => {
-                            const pct = Math.round((cnt / memC) * 100);
-                            return (
-                              <div key={role} style={{ marginBottom: 8 }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 3, whiteSpace: 'nowrap' }}>
-                                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: PIE_COLORS[i % PIE_COLORS.length], flexShrink: 0 }}></span>
-                                    {role}
-                                  </span>
-                                  <span style={{ fontWeight: 700 }}>{cnt}명 ({pct}%)</span>
-                                </div>
-                                <div style={{ height: 6, background: 'var(--elevated)', borderRadius: 3, overflow: 'hidden' }}>
-                                  <div style={{ height: '100%', width: `${pct}%`, background: PIE_COLORS[i % PIE_COLORS.length], borderRadius: 3 }}></div>
-                                </div>
-                              </div>
-                            );
-                          })}
+                      <div key={role} style={{ marginBottom: 10 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 4 }}>
+                          <span>{role}</span>
+                          <span style={{ fontWeight: 700 }}>{cnt}명 ({pct}%)</span>
                         </div>
-                        <svg viewBox="0 0 100 100" style={{ width: 76, height: 76, flexShrink: 0 }}>
-                          {roles.map(([, cnt], i) => {
-                            const seg = (cnt / memC) * circ;
-                            const el = <circle key={i} cx={50} cy={50} r={35} fill="none" stroke={PIE_COLORS[i % PIE_COLORS.length]} strokeWidth={18} strokeDasharray={`${seg} ${circ - seg}`} strokeDashoffset={-offset} transform="rotate(-90 50 50)" />;
-                            offset += seg;
-                            return el;
-                          })}
-                        </svg>
+                        <div style={{ height: 8, background: 'var(--elevated)', borderRadius: 4, overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${pct}%`, background: PIE_COLORS[i % PIE_COLORS.length], borderRadius: 4 }}></div>
+                        </div>
                       </div>
                     );
-                  })() : <div className="cap" style={{ textAlign: 'center', padding: 20 }}>부원 데이터가 없습니다.</div>}
+                  })}
                 </div>
                 {lastN.length > 0 && (
                   <div className="card">
@@ -3043,7 +3004,7 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                         return (
                           <g key={v}>
                             <line x1={yAW} y1={y} x2={CW} y2={y} stroke="var(--hair)" strokeWidth={0.5} opacity={0.6} />
-                            <text x={yAW - 4} y={y + 4} textAnchor="end" fill="var(--muted)" fontSize={11}>{v}</text>
+                            <text x={yAW - 4} y={y + 4} textAnchor="end" fill="var(--muted)" fontSize={10}>{v}</text>
                           </g>
                         );
                       })}
@@ -3054,7 +3015,7 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                         return (
                           <g key={k}>
                             <rect className="chart-bar" x={x} y={TP + CH - h} width={bW} height={h} rx={4} fill="#22c55e" opacity={0.85} onMouseEnter={e => showTip(e, `${k.slice(-2)}월: ${cnt}건`)} onMouseLeave={hideTip} onTouchStart={e => showTip(e, `${k.slice(-2)}월: ${cnt}건`)} onTouchEnd={() => setTimeout(hideTip, 1500)} />
-                            <text x={x + bW / 2} y={TP + CH + 20} textAnchor="middle" fill="var(--muted)" fontSize={12}>{k.slice(-2)}월</text>
+                            <text x={x + bW / 2} y={TP + CH + 20} textAnchor="middle" fill="var(--muted)" fontSize={10}>{k.slice(-2)}월</text>
                           </g>
                         );
                       })}
@@ -3064,44 +3025,25 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                     <div className="cap" style={{ textAlign: 'center', padding: 24 }}>일정을 등록하면 추이 그래프가 나타납니다.</div>
                   )}
                 </div>
-                {cats.length > 0 && (() => {
-                  const circ = 2 * Math.PI * 35;
-                  let offset = 0;
-                  return (
-                    <div className="card" style={{ marginBottom: 10 }}>
-                      <h3 style={{ marginBottom: 8 }}>분류별 현황</h3>
-                      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          {cats.map(([cat, cnt], i) => {
-                            const pct = Math.round((cnt / schC) * 100);
-                            return (
-                              <div key={cat} style={{ marginBottom: 8 }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 3, whiteSpace: 'nowrap' }}>
-                                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: PIE_COLORS[i % PIE_COLORS.length], flexShrink: 0 }}></span>
-                                    {cat}
-                                  </span>
-                                  <span style={{ fontWeight: 700 }}>{cnt}건 ({pct}%)</span>
-                                </div>
-                                <div style={{ height: 6, background: 'var(--elevated)', borderRadius: 3, overflow: 'hidden' }}>
-                                  <div style={{ height: '100%', width: `${pct}%`, background: PIE_COLORS[i % PIE_COLORS.length], borderRadius: 3 }}></div>
-                                </div>
-                              </div>
-                            );
-                          })}
+                {cats.length > 0 && (
+                  <div className="card" style={{ marginBottom: 10 }}>
+                    <h3 style={{ marginBottom: 8 }}>분류별 현황</h3>
+                    {cats.map(([cat, cnt], i) => {
+                      const pct = Math.round((cnt / schC) * 100);
+                      return (
+                        <div key={cat} style={{ marginBottom: 10 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 4 }}>
+                            <span>{cat}</span>
+                            <span style={{ fontWeight: 700 }}>{cnt}건 ({pct}%)</span>
+                          </div>
+                          <div style={{ height: 8, background: 'var(--elevated)', borderRadius: 4, overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${pct}%`, background: PIE_COLORS[i % PIE_COLORS.length], borderRadius: 4 }}></div>
+                          </div>
                         </div>
-                        <svg viewBox="0 0 100 100" style={{ width: 76, height: 76, flexShrink: 0 }}>
-                          {cats.map(([, cnt], i) => {
-                            const seg = (cnt / schC) * circ;
-                            const el = <circle key={i} cx={50} cy={50} r={35} fill="none" stroke={PIE_COLORS[i % PIE_COLORS.length]} strokeWidth={18} strokeDasharray={`${seg} ${circ - seg}`} strokeDashoffset={-offset} transform="rotate(-90 50 50)" />;
-                            offset += seg;
-                            return el;
-                          })}
-                        </svg>
-                      </div>
-                    </div>
-                  );
-                })()}
+                      );
+                    })}
+                  </div>
+                )}
                 {sortedKeys.length > 0 && (
                   <div className="card">
                     <h3 style={{ marginBottom: 8 }}>월별 주요 일정</h3>
@@ -3178,7 +3120,7 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                         return (
                           <g key={v}>
                             <line x1={yAW} y1={y} x2={CW} y2={y} stroke="var(--hair)" strokeWidth={0.5} opacity={0.6} />
-                            <text x={yAW - 4} y={y + 4} textAnchor="end" fill="var(--muted)" fontSize={11}>{formatAmount(v)}</text>
+                            <text x={yAW - 4} y={y + 4} textAnchor="end" fill="var(--muted)" fontSize={10}>{formatAmount(v)}</text>
                           </g>
                         );
                       })}
@@ -3188,7 +3130,7 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                         return (
                           <g key={k}>
                             <rect className="chart-bar" x={x} y={TP + CH - h} width={bW} height={h} rx={4} fill="#ef4444" opacity={0.8} onMouseEnter={e => showTip(e, `${k}: ₩${formatAmount(byPeriod[k].total)} (${byPeriod[k].count}건)`)} onMouseLeave={hideTip} onTouchStart={e => showTip(e, `${k}: ₩${formatAmount(byPeriod[k].total)} (${byPeriod[k].count}건)`)} onTouchEnd={() => setTimeout(hideTip, 1500)} />
-                            <text x={x + bW / 2} y={TP + CH + 20} textAnchor="middle" fill="var(--muted)" fontSize={12}>{k.length > 7 ? k.slice(-5) : k}</text>
+                            <text x={x + bW / 2} y={TP + CH + 20} textAnchor="middle" fill="var(--muted)" fontSize={10}>{k.length > 7 ? k.slice(-5) : k}</text>
                           </g>
                         );
                       })}
@@ -3198,44 +3140,25 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                     <div className="cap" style={{ textAlign: 'center', padding: 24 }}>후원 데이터를 등록하면 추이 그래프가 나타납니다.</div>
                   )}
                 </div>
-                {types.length > 0 && (() => {
-                  const circ = 2 * Math.PI * 35;
-                  let offset = 0;
-                  return (
-                    <div className="card" style={{ marginBottom: 10 }}>
-                      <h3 style={{ marginBottom: 8 }}>유형별 분포</h3>
-                      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          {types.map(([type, cnt], i) => {
-                            const pct = Math.round((cnt / sponsorList.length) * 100);
-                            return (
-                              <div key={type} style={{ marginBottom: 8 }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 3, whiteSpace: 'nowrap' }}>
-                                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: PIE_COLORS[i % PIE_COLORS.length], flexShrink: 0 }}></span>
-                                    {type}
-                                  </span>
-                                  <span style={{ fontWeight: 700 }}>{cnt}건 ({pct}%)</span>
-                                </div>
-                                <div style={{ height: 6, background: 'var(--elevated)', borderRadius: 3, overflow: 'hidden' }}>
-                                  <div style={{ height: '100%', width: `${pct}%`, background: PIE_COLORS[i % PIE_COLORS.length], borderRadius: 3 }}></div>
-                                </div>
-                              </div>
-                            );
-                          })}
+                {types.length > 0 && (
+                  <div className="card" style={{ marginBottom: 10 }}>
+                    <h3 style={{ marginBottom: 8 }}>유형별 분포</h3>
+                    {types.map(([type, cnt], i) => {
+                      const pct = Math.round((cnt / sponsorList.length) * 100);
+                      return (
+                        <div key={type} style={{ marginBottom: 10 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 4 }}>
+                            <span>{type}</span>
+                            <span style={{ fontWeight: 700 }}>{cnt}건 ({pct}%)</span>
+                          </div>
+                          <div style={{ height: 8, background: 'var(--elevated)', borderRadius: 4, overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${pct}%`, background: PIE_COLORS[i % PIE_COLORS.length], borderRadius: 4 }}></div>
+                          </div>
                         </div>
-                        <svg viewBox="0 0 100 100" style={{ width: 76, height: 76, flexShrink: 0 }}>
-                          {types.map(([, cnt], i) => {
-                            const seg = (cnt / sponsorList.length) * circ;
-                            const el = <circle key={i} cx={50} cy={50} r={35} fill="none" stroke={PIE_COLORS[i % PIE_COLORS.length]} strokeWidth={18} strokeDasharray={`${seg} ${circ - seg}`} strokeDashoffset={-offset} transform="rotate(-90 50 50)" />;
-                            offset += seg;
-                            return el;
-                          })}
-                        </svg>
-                      </div>
-                    </div>
-                  );
-                })()}
+                      );
+                    })}
+                  </div>
+                )}
                 <div className="card">
                   <h3 style={{ marginBottom: 8 }}>후원자 관리 가이드</h3>
                   {sponsorList.length > 0 ? (
