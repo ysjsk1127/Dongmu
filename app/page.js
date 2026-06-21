@@ -176,6 +176,8 @@ export default function Home() {
   const [almYear, setAlmYear] = useState('');
   const [almCompany, setAlmCompany] = useState('');
   const [almPosition, setAlmPosition] = useState('');
+  const [almDept, setAlmDept] = useState('');
+  const [almStudentId, setAlmStudentId] = useState('');
   const [almPhone, setAlmPhone] = useState('');
   const [almEmail, setAlmEmail] = useState('');
   const [almMentoring, setAlmMentoring] = useState(false);
@@ -659,13 +661,15 @@ export default function Home() {
       graduationYear: almYear,
       company: almCompany,
       position: almPosition,
+      department: almDept,
+      studentId: almStudentId,
       phone: almPhone,
       email: almEmail,
       mentoring: almMentoring,
     });
     if (!res.success) { showToast(res.error); return; }
     showToast('졸업 선배가 등록되었습니다');
-    setAlmName(''); setAlmGen(''); setAlmYear(''); setAlmCompany(''); setAlmPosition(''); setAlmPhone(''); setAlmEmail(''); setAlmMentoring(false);
+    setAlmName(''); setAlmGen(''); setAlmYear(''); setAlmCompany(''); setAlmPosition(''); setAlmDept(''); setAlmStudentId(''); setAlmPhone(''); setAlmEmail(''); setAlmMentoring(false);
     setAlmAdd(false);
     refreshData();
   }
@@ -2316,6 +2320,8 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
               <div className="inp-g"><label className="inp-l">이름 *</label><input className="inp" placeholder="홍길동" value={almName} onChange={e => setAlmName(e.target.value)} /></div>
               <div className="inp-g"><label className="inp-l">기수</label><select className="inp" value={almGen} onChange={e => setAlmGen(e.target.value)}><option value="">선택</option>{GENERATIONS.map(g => <option key={g}>{g}</option>)}</select></div>
               <div className="inp-g"><label className="inp-l">졸업 연도</label><input className="inp" placeholder="예: 2023" value={almYear} onChange={e => setAlmYear(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">학과</label><input className="inp" placeholder="예: 컴퓨터공학과" value={almDept} onChange={e => setAlmDept(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">학번</label><input className="inp" placeholder="예: 2019012345" value={almStudentId} onChange={e => setAlmStudentId(e.target.value)} /></div>
               <div className="inp-g"><label className="inp-l">회사 / 소속</label><input className="inp" placeholder="예: 한국항공우주연구원" value={almCompany} onChange={e => setAlmCompany(e.target.value)} /></div>
               <div className="inp-g"><label className="inp-l">직책</label><input className="inp" placeholder="예: 선임연구원" value={almPosition} onChange={e => setAlmPosition(e.target.value)} /></div>
               <div className="inp-g"><label className="inp-l">전화번호</label><input className="inp" placeholder="010-0000-0000" value={almPhone} onChange={e => setAlmPhone(formatPhone(e.target.value))} /></div>
@@ -2358,6 +2364,8 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                         <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>이름</span><div style={{ fontWeight: 600 }}>{a.name}</div></div>
                         <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>기수</span><div>{a.generation || '-'}</div></div>
                         <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>졸업 연도</span><div>{a.graduationYear ? `${a.graduationYear}년` : '-'}</div></div>
+                        <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>학과</span><div>{a.department || '-'}</div></div>
+                        <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>학번</span><div>{a.studentId || '-'}</div></div>
                         <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>멘토링 의향</span><div style={{ color: a.mentoring ? 'var(--blue)' : 'var(--muted)' }}>{a.mentoring ? '가능' : '없음'}</div></div>
                         <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>회사 / 소속</span><div>{a.company || '-'}</div></div>
                         <div><span style={{ color: 'var(--muted)', fontSize: 11 }}>직책</span><div>{a.position || '-'}</div></div>
