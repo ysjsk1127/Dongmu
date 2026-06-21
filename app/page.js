@@ -31,6 +31,20 @@ function GoogleIcon() {
 /* ───── Generation Options ───── */
 const GENERATIONS = Array.from({ length: 10 }, (_, i) => `${i + 1}기`);
 
+function niceAxis(maxVal, forceInt) {
+  if (maxVal <= 0) return { ticks: [0], niceMax: 1, step: 1 };
+  const rough = maxVal / 4;
+  const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+  const res = rough / mag;
+  let step = res <= 1 ? mag : res <= 2 ? 2 * mag : res <= 5 ? 5 * mag : 10 * mag;
+  if (forceInt && step < 1) step = 1;
+  const niceMax = Math.ceil(maxVal / step) * step;
+  const ticks = [];
+  for (let v = 0; v <= niceMax; v += step) ticks.push(v);
+  return { ticks, niceMax, step };
+}
+const CW = 320, CH = 120, TP = 14, VH = TP + CH + 28;
+
 export default function Home() {
   const [mounted, setMounted] = useState(false);
 
@@ -193,6 +207,14 @@ export default function Home() {
   const [obEmail, setObEmail] = useState('');
   const [obMentoring, setObMentoring] = useState(false);
   const [obEditing, setObEditing] = useState(false);
+
+  /* ── 차트 툴팁 ── */
+  const [tip, setTip] = useState(null);
+  function showTip(e, text) {
+    const r = e.currentTarget.getBoundingClientRect();
+    setTip({ text, x: r.left + r.width / 2, y: r.top - 6 });
+  }
+  function hideTip() { setTip(null); }
 
   /* ── 달력 일정 펼치기 ── */
   const [expandedCalSch, setExpandedCalSch] = useState(null);
@@ -2692,13 +2714,11 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
             const sortedKeys = Object.keys(grouped).sort();
             const lastN = sortedKeys.slice(-8);
             const maxVal = Math.max(...lastN.map(k => Math.max(grouped[k].income, grouped[k].expense)), 1);
-            const chartH = 120;
-            const topPad = 14;
-            const barGap = 48;
-            const barW = 18;
-            const yAxisW = 50;
-            const svgW = Math.max(lastN.length * barGap + yAxisW + 10, 240);
-            const yTicks = [0, 0.25, 0.5, 0.75, 1].map(r => ({ r, val: Math.round(maxVal * r), y: topPad + chartH - chartH * r }));
+            const ax = niceAxis(maxVal);
+            const yAW = 50;
+            const barArea = CW - yAW - 10;
+            const bGap = lastN.length > 0 ? barArea / lastN.length : 40;
+            const bW = Math.min(bGap * 0.35, 16);
             return (
               <>
                 <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
@@ -2735,28 +2755,31 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                         <span style={{ fontSize: 11, color: 'var(--ok)' }}><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: 'var(--ok)', marginRight: 3, verticalAlign: 1 }}></span>수입</span>
                         <span style={{ fontSize: 11, color: 'var(--warn)' }}><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: 'var(--warn)', marginRight: 3, verticalAlign: 1 }}></span>지출</span>
                       </div>
-                      <svg viewBox={`0 0 ${svgW} ${topPad + chartH + 28}`} style={{ width: '100%', height: 'auto' }}>
+                      <svg viewBox={`0 0 ${CW} ${VH}`} style={{ width: '100%', height: 180 }}>
                         <style>{`svg rect.chart-bar:hover { opacity: 1; filter: brightness(1.2); } svg rect.chart-bar { transition: opacity 0.15s, filter 0.15s; cursor: pointer; }`}</style>
-                        {yTicks.map(t => (
-                          <g key={t.r}>
-                            <line x1={yAxisW} y1={t.y} x2={svgW} y2={t.y} stroke="var(--hair)" strokeWidth={0.5} opacity={0.6} />
-                            <text x={yAxisW - 4} y={t.y + 3} textAnchor="end" fill="var(--muted)" fontSize={8}>{formatExpAmount(t.val)}</text>
-                          </g>
-                        ))}
-                        {lastN.map((k, i) => {
-                          const g = grouped[k];
-                          const ih = Math.max((g.income / maxVal) * chartH, g.income > 0 ? 4 : 0);
-                          const eh = Math.max((g.expense / maxVal) * chartH, g.expense > 0 ? 4 : 0);
-                          const x = i * barGap + yAxisW;
+                        {ax.ticks.map(v => {
+                          const y = TP + CH - (v / ax.niceMax) * CH;
                           return (
-                            <g key={k}>
-                              <rect className="chart-bar" x={x} y={topPad + chartH - ih} width={barW} height={ih} rx={4} fill="#22c55e" opacity={0.85}><title>{`${k} 수입: ₩${formatExpAmount(g.income)}`}</title></rect>
-                              <rect className="chart-bar" x={x + barW + 2} y={topPad + chartH - eh} width={barW} height={eh} rx={4} fill="#f59e0b" opacity={0.85}><title>{`${k} 지출: ₩${formatExpAmount(g.expense)}`}</title></rect>
-                              <text x={x + barW} y={topPad + chartH + 14} textAnchor="middle" fill="var(--muted)" fontSize={9}>{k.length > 7 ? k.slice(-5) : k}</text>
+                            <g key={v}>
+                              <line x1={yAW} y1={y} x2={CW} y2={y} stroke="var(--hair)" strokeWidth={0.5} opacity={0.6} />
+                              <text x={yAW - 4} y={y + 3} textAnchor="end" fill="var(--muted)" fontSize={8}>{formatExpAmount(v)}</text>
                             </g>
                           );
                         })}
-                        <line x1={yAxisW} y1={topPad + chartH} x2={svgW} y2={topPad + chartH} stroke="var(--hair)" strokeWidth={1} />
+                        {lastN.map((k, i) => {
+                          const g = grouped[k];
+                          const ih = Math.max((g.income / ax.niceMax) * CH, g.income > 0 ? 4 : 0);
+                          const eh = Math.max((g.expense / ax.niceMax) * CH, g.expense > 0 ? 4 : 0);
+                          const x = i * bGap + yAW;
+                          return (
+                            <g key={k}>
+                              <rect className="chart-bar" x={x} y={TP + CH - ih} width={bW} height={ih} rx={4} fill="#22c55e" opacity={0.85} onMouseEnter={e => showTip(e, `${k} 수입: ₩${formatExpAmount(g.income)}`)} onMouseLeave={hideTip} onTouchStart={e => showTip(e, `${k} 수입: ₩${formatExpAmount(g.income)}`)} onTouchEnd={() => setTimeout(hideTip, 1500)} />
+                              <rect className="chart-bar" x={x + bW + 2} y={TP + CH - eh} width={bW} height={eh} rx={4} fill="#f59e0b" opacity={0.85} onMouseEnter={e => showTip(e, `${k} 지출: ₩${formatExpAmount(g.expense)}`)} onMouseLeave={hideTip} onTouchStart={e => showTip(e, `${k} 지출: ₩${formatExpAmount(g.expense)}`)} onTouchEnd={() => setTimeout(hideTip, 1500)} />
+                              <text x={x + bW} y={TP + CH + 14} textAnchor="middle" fill="var(--muted)" fontSize={9}>{k.length > 7 ? k.slice(-5) : k}</text>
+                            </g>
+                          );
+                        })}
+                        <line x1={yAW} y1={TP + CH} x2={CW} y2={TP + CH} stroke="var(--hair)" strokeWidth={1} />
                       </svg>
                     </>
                   ) : (
@@ -2838,13 +2861,11 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
             const sortedKeys = Object.keys(byPeriod).sort();
             const lastN = sortedKeys.slice(-8);
             const maxCount = Math.max(...lastN.map(k => byPeriod[k].length), 1);
-            const chartH = 120;
-            const topPad = 14;
-            const mBarGap = 50;
-            const mBarW = 28;
-            const mYAxisW = 30;
-            const mSvgW = Math.max(lastN.length * mBarGap + mYAxisW + 10, 240);
-            const mYTicks = [0, 0.25, 0.5, 0.75, 1].map(r => ({ r, val: Math.round(maxCount * r), y: topPad + chartH - chartH * r }));
+            const ax = niceAxis(maxCount, true);
+            const yAW = 30;
+            const barArea = CW - yAW - 10;
+            const bGap = lastN.length > 0 ? barArea / lastN.length : 40;
+            const bW = Math.min(bGap * 0.6, 28);
             const roleCount = {};
             membersList.forEach(m => { const r = m.role || '부원'; roleCount[r] = (roleCount[r] || 0) + 1; });
             const roles = Object.entries(roleCount).sort((a, b) => b[1] - a[1]);
@@ -2871,26 +2892,29 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                 <div className="card" style={{ marginBottom: 10 }}>
                   <h3 style={{ marginBottom: 8 }}>가입 추이</h3>
                   {lastN.length > 0 ? (
-                    <svg viewBox={`0 0 ${mSvgW} ${topPad + chartH + 28}`} style={{ width: '100%', height: 'auto' }}>
+                    <svg viewBox={`0 0 ${CW} ${VH}`} style={{ width: '100%', height: 180 }}>
                       <style>{`svg rect.chart-bar:hover { opacity: 1; filter: brightness(1.2); } svg rect.chart-bar { transition: opacity 0.15s, filter 0.15s; cursor: pointer; }`}</style>
-                      {mYTicks.map(t => (
-                        <g key={t.r}>
-                          <line x1={mYAxisW} y1={t.y} x2={mSvgW} y2={t.y} stroke="var(--hair)" strokeWidth={0.5} opacity={0.6} />
-                          <text x={mYAxisW - 4} y={t.y + 3} textAnchor="end" fill="var(--muted)" fontSize={8}>{t.val}</text>
-                        </g>
-                      ))}
-                      {lastN.map((k, i) => {
-                        const cnt = byPeriod[k].length;
-                        const h = Math.max((cnt / maxCount) * chartH, cnt > 0 ? 6 : 0);
-                        const x = i * mBarGap + mYAxisW;
+                      {ax.ticks.map(v => {
+                        const y = TP + CH - (v / ax.niceMax) * CH;
                         return (
-                          <g key={k}>
-                            <rect className="chart-bar" x={x} y={topPad + chartH - h} width={mBarW} height={h} rx={4} fill="#4d8ef7" opacity={0.85}><title>{`${k}: ${cnt}명`}</title></rect>
-                            <text x={x + mBarW / 2} y={topPad + chartH + 14} textAnchor="middle" fill="var(--muted)" fontSize={9}>{k.length > 7 ? k.slice(-5) : k}</text>
+                          <g key={v}>
+                            <line x1={yAW} y1={y} x2={CW} y2={y} stroke="var(--hair)" strokeWidth={0.5} opacity={0.6} />
+                            <text x={yAW - 4} y={y + 3} textAnchor="end" fill="var(--muted)" fontSize={8}>{v}</text>
                           </g>
                         );
                       })}
-                      <line x1={mYAxisW} y1={topPad + chartH} x2={mSvgW} y2={topPad + chartH} stroke="var(--hair)" strokeWidth={1} />
+                      {lastN.map((k, i) => {
+                        const cnt = byPeriod[k].length;
+                        const h = Math.max((cnt / ax.niceMax) * CH, cnt > 0 ? 6 : 0);
+                        const x = i * bGap + yAW;
+                        return (
+                          <g key={k}>
+                            <rect className="chart-bar" x={x} y={TP + CH - h} width={bW} height={h} rx={4} fill="#4d8ef7" opacity={0.85} onMouseEnter={e => showTip(e, `${k}: ${cnt}명`)} onMouseLeave={hideTip} onTouchStart={e => showTip(e, `${k}: ${cnt}명`)} onTouchEnd={() => setTimeout(hideTip, 1500)} />
+                            <text x={x + bW / 2} y={TP + CH + 14} textAnchor="middle" fill="var(--muted)" fontSize={9}>{k.length > 7 ? k.slice(-5) : k}</text>
+                          </g>
+                        );
+                      })}
+                      <line x1={yAW} y1={TP + CH} x2={CW} y2={TP + CH} stroke="var(--hair)" strokeWidth={1} />
                     </svg>
                   ) : (
                     <div className="cap" style={{ textAlign: 'center', padding: 24 }}>부원 데이터를 등록하면 추이 그래프가 나타납니다.</div>
@@ -2946,13 +2970,11 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
             const sortedKeys = Object.keys(months).sort();
             const lastN = sortedKeys.slice(-8);
             const maxCount = Math.max(...lastN.map(k => months[k].length), 1);
-            const chartH = 120;
-            const topPad = 14;
-            const sBarGap = 50;
-            const sBarW = 28;
-            const sYAxisW = 30;
-            const sSvgW = Math.max(lastN.length * sBarGap + sYAxisW + 10, 240);
-            const sYTicks = [0, 0.25, 0.5, 0.75, 1].map(r => ({ r, val: Math.round(maxCount * r), y: topPad + chartH - chartH * r }));
+            const ax = niceAxis(maxCount, true);
+            const yAW = 30;
+            const barArea = CW - yAW - 10;
+            const bGap = lastN.length > 0 ? barArea / lastN.length : 40;
+            const bW = Math.min(bGap * 0.6, 28);
             const catCount = {};
             scheduleList.forEach(s => { const c = s.category || '기타'; catCount[c] = (catCount[c] || 0) + 1; });
             const cats = Object.entries(catCount).sort((a, b) => b[1] - a[1]);
@@ -2976,26 +2998,29 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                 <div className="card" style={{ marginBottom: 10 }}>
                   <h3 style={{ marginBottom: 8 }}>월별 일정 수</h3>
                   {lastN.length > 0 ? (
-                    <svg viewBox={`0 0 ${sSvgW} ${topPad + chartH + 28}`} style={{ width: '100%', height: 'auto' }}>
+                    <svg viewBox={`0 0 ${CW} ${VH}`} style={{ width: '100%', height: 180 }}>
                       <style>{`svg rect.chart-bar:hover { opacity: 1; filter: brightness(1.2); } svg rect.chart-bar { transition: opacity 0.15s, filter 0.15s; cursor: pointer; }`}</style>
-                      {sYTicks.map(t => (
-                        <g key={t.r}>
-                          <line x1={sYAxisW} y1={t.y} x2={sSvgW} y2={t.y} stroke="var(--hair)" strokeWidth={0.5} opacity={0.6} />
-                          <text x={sYAxisW - 4} y={t.y + 3} textAnchor="end" fill="var(--muted)" fontSize={8}>{t.val}</text>
-                        </g>
-                      ))}
-                      {lastN.map((k, i) => {
-                        const cnt = months[k].length;
-                        const h = Math.max((cnt / maxCount) * chartH, cnt > 0 ? 6 : 0);
-                        const x = i * sBarGap + sYAxisW;
+                      {ax.ticks.map(v => {
+                        const y = TP + CH - (v / ax.niceMax) * CH;
                         return (
-                          <g key={k}>
-                            <rect className="chart-bar" x={x} y={topPad + chartH - h} width={sBarW} height={h} rx={4} fill="#22c55e" opacity={0.85}><title>{`${k.slice(-2)}월: ${cnt}건`}</title></rect>
-                            <text x={x + sBarW / 2} y={topPad + chartH + 14} textAnchor="middle" fill="var(--muted)" fontSize={9}>{k.slice(-2)}월</text>
+                          <g key={v}>
+                            <line x1={yAW} y1={y} x2={CW} y2={y} stroke="var(--hair)" strokeWidth={0.5} opacity={0.6} />
+                            <text x={yAW - 4} y={y + 3} textAnchor="end" fill="var(--muted)" fontSize={8}>{v}</text>
                           </g>
                         );
                       })}
-                      <line x1={sYAxisW} y1={topPad + chartH} x2={sSvgW} y2={topPad + chartH} stroke="var(--hair)" strokeWidth={1} />
+                      {lastN.map((k, i) => {
+                        const cnt = months[k].length;
+                        const h = Math.max((cnt / ax.niceMax) * CH, cnt > 0 ? 6 : 0);
+                        const x = i * bGap + yAW;
+                        return (
+                          <g key={k}>
+                            <rect className="chart-bar" x={x} y={TP + CH - h} width={bW} height={h} rx={4} fill="#22c55e" opacity={0.85} onMouseEnter={e => showTip(e, `${k.slice(-2)}월: ${cnt}건`)} onMouseLeave={hideTip} onTouchStart={e => showTip(e, `${k.slice(-2)}월: ${cnt}건`)} onTouchEnd={() => setTimeout(hideTip, 1500)} />
+                            <text x={x + bW / 2} y={TP + CH + 14} textAnchor="middle" fill="var(--muted)" fontSize={9}>{k.slice(-2)}월</text>
+                          </g>
+                        );
+                      })}
+                      <line x1={yAW} y1={TP + CH} x2={CW} y2={TP + CH} stroke="var(--hair)" strokeWidth={1} />
                     </svg>
                   ) : (
                     <div className="cap" style={{ textAlign: 'center', padding: 24 }}>일정을 등록하면 추이 그래프가 나타납니다.</div>
@@ -3058,13 +3083,11 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
             const sortedKeys = Object.keys(byPeriod).sort();
             const lastN = sortedKeys.slice(-8);
             const maxVal = Math.max(...lastN.map(k => byPeriod[k].total), 1);
-            const chartH = 120;
-            const topPad = 14;
-            const spBarGap = 50;
-            const spBarW = 28;
-            const spYAxisW = 50;
-            const spSvgW = Math.max(lastN.length * spBarGap + spYAxisW + 10, 240);
-            const spYTicks = [0, 0.25, 0.5, 0.75, 1].map(r => ({ r, val: Math.round(maxVal * r), y: topPad + chartH - chartH * r }));
+            const ax = niceAxis(maxVal);
+            const yAW = 50;
+            const barArea = CW - yAW - 10;
+            const bGap = lastN.length > 0 ? barArea / lastN.length : 40;
+            const bW = Math.min(bGap * 0.6, 28);
             const typeCount = {};
             sponsorList.forEach(s => { const t = s.type || '기타'; typeCount[t] = (typeCount[t] || 0) + 1; });
             const types = Object.entries(typeCount).sort((a, b) => b[1] - a[1]);
@@ -3092,25 +3115,28 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                 <div className="card" style={{ marginBottom: 10 }}>
                   <h3 style={{ marginBottom: 8 }}>후원금 추이</h3>
                   {lastN.length > 0 ? (
-                    <svg viewBox={`0 0 ${spSvgW} ${topPad + chartH + 28}`} style={{ width: '100%', height: 'auto' }}>
+                    <svg viewBox={`0 0 ${CW} ${VH}`} style={{ width: '100%', height: 180 }}>
                       <style>{`svg rect.chart-bar:hover { opacity: 1; filter: brightness(1.2); } svg rect.chart-bar { transition: opacity 0.15s, filter 0.15s; cursor: pointer; }`}</style>
-                      {spYTicks.map(t => (
-                        <g key={t.r}>
-                          <line x1={spYAxisW} y1={t.y} x2={spSvgW} y2={t.y} stroke="var(--hair)" strokeWidth={0.5} opacity={0.6} />
-                          <text x={spYAxisW - 4} y={t.y + 3} textAnchor="end" fill="var(--muted)" fontSize={8}>{formatAmount(t.val)}</text>
-                        </g>
-                      ))}
-                      {lastN.map((k, i) => {
-                        const h = Math.max((byPeriod[k].total / maxVal) * chartH, byPeriod[k].total > 0 ? 6 : 0);
-                        const x = i * spBarGap + spYAxisW;
+                      {ax.ticks.map(v => {
+                        const y = TP + CH - (v / ax.niceMax) * CH;
                         return (
-                          <g key={k}>
-                            <rect className="chart-bar" x={x} y={topPad + chartH - h} width={spBarW} height={h} rx={4} fill="#ef4444" opacity={0.8}><title>{`${k}: ₩${formatAmount(byPeriod[k].total)} (${byPeriod[k].count}건)`}</title></rect>
-                            <text x={x + spBarW / 2} y={topPad + chartH + 14} textAnchor="middle" fill="var(--muted)" fontSize={9}>{k.length > 7 ? k.slice(-5) : k}</text>
+                          <g key={v}>
+                            <line x1={yAW} y1={y} x2={CW} y2={y} stroke="var(--hair)" strokeWidth={0.5} opacity={0.6} />
+                            <text x={yAW - 4} y={y + 3} textAnchor="end" fill="var(--muted)" fontSize={8}>{formatAmount(v)}</text>
                           </g>
                         );
                       })}
-                      <line x1={spYAxisW} y1={topPad + chartH} x2={spSvgW} y2={topPad + chartH} stroke="var(--hair)" strokeWidth={1} />
+                      {lastN.map((k, i) => {
+                        const h = Math.max((byPeriod[k].total / ax.niceMax) * CH, byPeriod[k].total > 0 ? 6 : 0);
+                        const x = i * bGap + yAW;
+                        return (
+                          <g key={k}>
+                            <rect className="chart-bar" x={x} y={TP + CH - h} width={bW} height={h} rx={4} fill="#ef4444" opacity={0.8} onMouseEnter={e => showTip(e, `${k}: ₩${formatAmount(byPeriod[k].total)} (${byPeriod[k].count}건)`)} onMouseLeave={hideTip} onTouchStart={e => showTip(e, `${k}: ₩${formatAmount(byPeriod[k].total)} (${byPeriod[k].count}건)`)} onTouchEnd={() => setTimeout(hideTip, 1500)} />
+                            <text x={x + bW / 2} y={TP + CH + 14} textAnchor="middle" fill="var(--muted)" fontSize={9}>{k.length > 7 ? k.slice(-5) : k}</text>
+                          </g>
+                        );
+                      })}
+                      <line x1={yAW} y1={TP + CH} x2={CW} y2={TP + CH} stroke="var(--hair)" strokeWidth={1} />
                     </svg>
                   ) : (
                     <div className="cap" style={{ textAlign: 'center', padding: 24 }}>후원 데이터를 등록하면 추이 그래프가 나타납니다.</div>
@@ -3560,6 +3586,9 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
           <img src={viewerImg} alt="증빙 자료" onClick={e => e.stopPropagation()} style={{ maxWidth: '90vw', maxHeight: '80vh', borderRadius: 12, objectFit: 'contain' }} />
         </div>
       )}
+
+      {/* ════════ CHART TOOLTIP ════════ */}
+      {tip && <div style={{ position: 'fixed', left: tip.x, top: tip.y, transform: 'translate(-50%, -100%)', background: 'rgba(0,0,0,0.88)', color: '#fff', padding: '5px 12px', borderRadius: 8, fontSize: 13, fontWeight: 600, pointerEvents: 'none', zIndex: 9999, whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>{tip.text}</div>}
 
       {/* ════════ TOAST ════════ */}
       <div className={`toast ${toast ? 'show' : ''}`}>{toast}</div>
