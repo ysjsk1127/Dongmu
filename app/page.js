@@ -2717,7 +2717,8 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
             const maxVal = Math.max(...lastN.map(k => Math.max(grouped[k].income, grouped[k].expense)), 1);
             const ax = niceAxis(maxVal);
             const yAW = 60;
-            const barArea = CW - yAW - 16;
+            const bPad = 10;
+            const barArea = CW - yAW - bPad - 16;
             const bGap = lastN.length > 0 ? barArea / lastN.length : 40;
             const bW = Math.min(bGap * 0.35, 18);
             return (
@@ -2763,7 +2764,7 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                           return (
                             <g key={v}>
                               <line x1={yAW} y1={y} x2={CW} y2={y} stroke="var(--hair)" strokeWidth={0.5} opacity={0.6} />
-                              <text x={yAW - 4} y={y + 4} textAnchor="end" fill="var(--muted)" fontSize={10}>{formatExpAmount(v)}</text>
+                              <text x={yAW - 4} y={y + 4} textAnchor="end" fill="var(--muted)" fontSize={9}>{formatExpAmount(v)}</text>
                             </g>
                           );
                         })}
@@ -2771,12 +2772,12 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                           const g = grouped[k];
                           const ih = Math.max((g.income / ax.niceMax) * CH, g.income > 0 ? 4 : 0);
                           const eh = Math.max((g.expense / ax.niceMax) * CH, g.expense > 0 ? 4 : 0);
-                          const x = i * bGap + yAW;
+                          const x = i * bGap + yAW + bPad;
                           return (
                             <g key={k}>
                               <rect className="chart-bar" x={x} y={TP + CH - ih} width={bW} height={ih} rx={4} fill="#22c55e" opacity={0.85} onMouseEnter={e => showTip(e, `${k} 수입: ₩${formatExpAmount(g.income)}`)} onMouseLeave={hideTip} onTouchStart={e => showTip(e, `${k} 수입: ₩${formatExpAmount(g.income)}`)} onTouchEnd={() => setTimeout(hideTip, 1500)} />
                               <rect className="chart-bar" x={x + bW + 2} y={TP + CH - eh} width={bW} height={eh} rx={4} fill="#f59e0b" opacity={0.85} onMouseEnter={e => showTip(e, `${k} 지출: ₩${formatExpAmount(g.expense)}`)} onMouseLeave={hideTip} onTouchStart={e => showTip(e, `${k} 지출: ₩${formatExpAmount(g.expense)}`)} onTouchEnd={() => setTimeout(hideTip, 1500)} />
-                              <text x={x + bW} y={TP + CH + 20} textAnchor="middle" fill="var(--muted)" fontSize={10}>{k.length > 7 ? k.slice(-5) : k}</text>
+                              <text x={x + bW} y={TP + CH + 20} textAnchor="middle" fill="var(--muted)" fontSize={9}>{k.length > 7 ? k.slice(-5) : k}</text>
                             </g>
                           );
                         })}
@@ -2863,7 +2864,8 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
             const maxCount = Math.max(...lastN.map(k => byPeriod[k].length), 1);
             const ax = niceAxis(maxCount, true);
             const yAW = 36;
-            const barArea = CW - yAW - 16;
+            const bPad = 10;
+            const barArea = CW - yAW - bPad - 16;
             const bGap = lastN.length > 0 ? barArea / lastN.length : 40;
             const bW = Math.min(bGap * 0.6, 28);
             const roleCount = {};
@@ -2899,18 +2901,18 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                         return (
                           <g key={v}>
                             <line x1={yAW} y1={y} x2={CW} y2={y} stroke="var(--hair)" strokeWidth={0.5} opacity={0.6} />
-                            <text x={yAW - 4} y={y + 4} textAnchor="end" fill="var(--muted)" fontSize={10}>{v}</text>
+                            <text x={yAW - 4} y={y + 4} textAnchor="end" fill="var(--muted)" fontSize={9}>{v}</text>
                           </g>
                         );
                       })}
                       {lastN.map((k, i) => {
                         const cnt = byPeriod[k].length;
                         const h = Math.max((cnt / ax.niceMax) * CH, cnt > 0 ? 6 : 0);
-                        const x = i * bGap + yAW;
+                        const x = i * bGap + yAW + bPad;
                         return (
                           <g key={k}>
                             <rect className="chart-bar" x={x} y={TP + CH - h} width={bW} height={h} rx={4} fill="#4d8ef7" opacity={0.85} onMouseEnter={e => showTip(e, `${k}: ${cnt}명`)} onMouseLeave={hideTip} onTouchStart={e => showTip(e, `${k}: ${cnt}명`)} onTouchEnd={() => setTimeout(hideTip, 1500)} />
-                            <text x={x + bW / 2} y={TP + CH + 20} textAnchor="middle" fill="var(--muted)" fontSize={10}>{k.length > 7 ? k.slice(-5) : k}</text>
+                            <text x={x + bW / 2} y={TP + CH + 20} textAnchor="middle" fill="var(--muted)" fontSize={9}>{k.length > 7 ? k.slice(-5) : k}</text>
                           </g>
                         );
                       })}
@@ -2971,7 +2973,8 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
             const maxCount = Math.max(...lastN.map(k => months[k].length), 1);
             const ax = niceAxis(maxCount, true);
             const yAW = 36;
-            const barArea = CW - yAW - 16;
+            const bPad = 10;
+            const barArea = CW - yAW - bPad - 16;
             const bGap = lastN.length > 0 ? barArea / lastN.length : 40;
             const bW = Math.min(bGap * 0.6, 28);
             const catCount = {};
@@ -3004,18 +3007,18 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                         return (
                           <g key={v}>
                             <line x1={yAW} y1={y} x2={CW} y2={y} stroke="var(--hair)" strokeWidth={0.5} opacity={0.6} />
-                            <text x={yAW - 4} y={y + 4} textAnchor="end" fill="var(--muted)" fontSize={10}>{v}</text>
+                            <text x={yAW - 4} y={y + 4} textAnchor="end" fill="var(--muted)" fontSize={9}>{v}</text>
                           </g>
                         );
                       })}
                       {lastN.map((k, i) => {
                         const cnt = months[k].length;
                         const h = Math.max((cnt / ax.niceMax) * CH, cnt > 0 ? 6 : 0);
-                        const x = i * bGap + yAW;
+                        const x = i * bGap + yAW + bPad;
                         return (
                           <g key={k}>
                             <rect className="chart-bar" x={x} y={TP + CH - h} width={bW} height={h} rx={4} fill="#22c55e" opacity={0.85} onMouseEnter={e => showTip(e, `${k.slice(-2)}월: ${cnt}건`)} onMouseLeave={hideTip} onTouchStart={e => showTip(e, `${k.slice(-2)}월: ${cnt}건`)} onTouchEnd={() => setTimeout(hideTip, 1500)} />
-                            <text x={x + bW / 2} y={TP + CH + 20} textAnchor="middle" fill="var(--muted)" fontSize={10}>{k.slice(-2)}월</text>
+                            <text x={x + bW / 2} y={TP + CH + 20} textAnchor="middle" fill="var(--muted)" fontSize={9}>{k.slice(-2)}월</text>
                           </g>
                         );
                       })}
@@ -3083,7 +3086,8 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
             const maxVal = Math.max(...lastN.map(k => byPeriod[k].total), 1);
             const ax = niceAxis(maxVal);
             const yAW = 60;
-            const barArea = CW - yAW - 16;
+            const bPad = 10;
+            const barArea = CW - yAW - bPad - 16;
             const bGap = lastN.length > 0 ? barArea / lastN.length : 40;
             const bW = Math.min(bGap * 0.6, 28);
             const typeCount = {};
@@ -3120,17 +3124,17 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                         return (
                           <g key={v}>
                             <line x1={yAW} y1={y} x2={CW} y2={y} stroke="var(--hair)" strokeWidth={0.5} opacity={0.6} />
-                            <text x={yAW - 4} y={y + 4} textAnchor="end" fill="var(--muted)" fontSize={10}>{formatAmount(v)}</text>
+                            <text x={yAW - 4} y={y + 4} textAnchor="end" fill="var(--muted)" fontSize={9}>{formatAmount(v)}</text>
                           </g>
                         );
                       })}
                       {lastN.map((k, i) => {
                         const h = Math.max((byPeriod[k].total / ax.niceMax) * CH, byPeriod[k].total > 0 ? 6 : 0);
-                        const x = i * bGap + yAW;
+                        const x = i * bGap + yAW + bPad;
                         return (
                           <g key={k}>
                             <rect className="chart-bar" x={x} y={TP + CH - h} width={bW} height={h} rx={4} fill="#ef4444" opacity={0.8} onMouseEnter={e => showTip(e, `${k}: ₩${formatAmount(byPeriod[k].total)} (${byPeriod[k].count}건)`)} onMouseLeave={hideTip} onTouchStart={e => showTip(e, `${k}: ₩${formatAmount(byPeriod[k].total)} (${byPeriod[k].count}건)`)} onTouchEnd={() => setTimeout(hideTip, 1500)} />
-                            <text x={x + bW / 2} y={TP + CH + 20} textAnchor="middle" fill="var(--muted)" fontSize={10}>{k.length > 7 ? k.slice(-5) : k}</text>
+                            <text x={x + bW / 2} y={TP + CH + 20} textAnchor="middle" fill="var(--muted)" fontSize={9}>{k.length > 7 ? k.slice(-5) : k}</text>
                           </g>
                         );
                       })}
