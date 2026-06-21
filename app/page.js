@@ -183,6 +183,17 @@ export default function Home() {
   const [almMentoring, setAlmMentoring] = useState(false);
   const [expandedAlumni, setExpandedAlumni] = useState(null);
 
+  // OB 졸업생 본인 정보 수정
+  const [obGradYear, setObGradYear] = useState('');
+  const [obDept, setObDept] = useState('');
+  const [obStudentId, setObStudentId] = useState('');
+  const [obCompany, setObCompany] = useState('');
+  const [obPosition, setObPosition] = useState('');
+  const [obPhone, setObPhone] = useState('');
+  const [obEmail, setObEmail] = useState('');
+  const [obMentoring, setObMentoring] = useState(false);
+  const [obEditing, setObEditing] = useState(false);
+
   /* ── 달력 일정 펼치기 ── */
   const [expandedCalSch, setExpandedCalSch] = useState(null);
   const [homeCalSelected, setHomeCalSelected] = useState(null);
@@ -344,6 +355,8 @@ export default function Home() {
 
   /* ───── Helpers ───── */
   const isManager = user && membersList.find(m => (m.email === user.email || m.studentId === user.studentId) && m.role === '회장');
+  const isOB = user && membersList.find(m => (m.email === user.email || m.studentId === user.studentId) && m.role === 'OB');
+  const myAlumni = user ? alumniList.find(a => a.linkedEmail === user.email || (a.email === user.email && a.name === user.name)) : null;
 
   function go(id) {
     setScreenLoading(true);
@@ -674,6 +687,39 @@ export default function Home() {
     refreshData();
   }
 
+  function startObEdit() {
+    if (!myAlumni) return;
+    setObGradYear(myAlumni.graduationYear || '');
+    setObDept(myAlumni.department || '');
+    setObStudentId(myAlumni.studentId || '');
+    setObCompany(myAlumni.company || '');
+    setObPosition(myAlumni.position || '');
+    setObPhone(myAlumni.phone || '');
+    setObEmail(myAlumni.email || '');
+    setObMentoring(myAlumni.mentoring || false);
+    setObEditing(true);
+    go('ob-edit');
+  }
+
+  function saveObProfile() {
+    if (!myAlumni) return;
+    const res = updateAlumnus(myAlumni.id, {
+      graduationYear: obGradYear,
+      department: obDept,
+      studentId: obStudentId,
+      company: obCompany,
+      position: obPosition,
+      phone: obPhone,
+      email: obEmail,
+      mentoring: obMentoring,
+    });
+    if (!res.success) { showToast(res.error); return; }
+    showToast('졸업생 정보가 수정되었습니다');
+    setObEditing(false);
+    refreshData();
+    go('me');
+  }
+
   /* ───── Generic delete for new modules ───── */
   function handleConfirmDel2() {
     if (!confirmDel2) return;
@@ -717,10 +763,12 @@ export default function Home() {
           graduationYear: '',
           company: '',
           position: '',
+          department: member.department || '',
+          studentId: member.studentId || '',
           phone: member.phone || '',
           email: member.email || '',
+          linkedEmail: member.email || '',
           mentoring: false,
-          fromMember: true,
         });
       }
     }
@@ -3145,6 +3193,12 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                 <div className="menu-i" onClick={() => go('my-receipts')}><div className="menu-l"><i className="ti ti-receipt-2"></i> 내가 올린 증빙</div><i className="ti ti-chevron-right menu-r"></i></div>
               </div>
 
+              {isOB && myAlumni && (
+                <div className="card" style={{ padding: '0 16px', marginTop: 8 }}>
+                  <div className="menu-i" onClick={startObEdit}><div className="menu-l"><i className="ti ti-school"></i> 내 졸업생 정보 수정</div><i className="ti ti-chevron-right menu-r"></i></div>
+                </div>
+              )}
+
               <div className="card" style={{ padding: '0 16px', marginTop: 8 }}>
                 <div className="menu-i" onClick={() => go('my-notify')}><div className="menu-l"><i className="ti ti-bell"></i> 알림 설정</div><i className="ti ti-chevron-right menu-r"></i></div>
                 <div className="menu-i" onClick={() => { setEditName(user.name); setEditPhone(user.phone); setEditDept(user.department); setEditSchool(user.school || ''); setEditStudentId(user.studentId || ''); setEditEmail(user.email || ''); setEditCurPw(''); setEditNewPw(''); setEditNewPwConfirm(''); go('my-privacy'); }}><div className="menu-l"><i className="ti ti-lock"></i> 개인정보 관리</div><i className="ti ti-chevron-right menu-r"></i></div>
@@ -3302,6 +3356,36 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
               </div>
             ))}
           </div>
+        </div>
+
+        {/* ════════ OB - 졸업생 정보 수정 ════════ */}
+        <div className={`scr ${screen === 'ob-edit' ? 'on' : ''}`}>
+          <div className="top-bar"><button className="back-btn" onClick={() => go('me')}><i className="ti ti-arrow-left"></i></button><span className="top-title">내 졸업생 정보</span></div>
+          <div className="stripe"></div>
+          {myAlumni && (
+            <div className="card" style={{ marginBottom: 12 }}>
+              <div style={{ textAlign: 'center', marginBottom: 12 }}>
+                <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--google)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 700, color: '#fff', margin: '0 auto 8px' }}>{myAlumni.name.charAt(0)}</div>
+                <div style={{ fontSize: 16, fontWeight: 700 }}>{myAlumni.name}</div>
+                <div style={{ fontSize: 12, color: 'var(--muted)' }}>{myAlumni.generation || 'OB'}</div>
+              </div>
+              <div className="inp-g"><label className="inp-l">졸업 연도</label><input className="inp" placeholder="예: 2024" value={obGradYear} onChange={e => setObGradYear(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">학과</label><input className="inp" placeholder="예: 컴퓨터소프트웨어학부" value={obDept} onChange={e => setObDept(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">학번</label><input className="inp" placeholder="예: 2020012345" value={obStudentId} onChange={e => setObStudentId(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">회사 / 소속</label><input className="inp" placeholder="예: 네이버" value={obCompany} onChange={e => setObCompany(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">직책</label><input className="inp" placeholder="예: 백엔드 개발자" value={obPosition} onChange={e => setObPosition(e.target.value)} /></div>
+              <div className="inp-g"><label className="inp-l">전화번호</label><input className="inp" placeholder="010-0000-0000" value={obPhone} onChange={e => setObPhone(formatPhone(e.target.value))} /></div>
+              <div className="inp-g"><label className="inp-l">이메일</label><input className="inp" placeholder="example@email.com" value={obEmail} onChange={e => setObEmail(e.target.value)} /></div>
+              <div className="inp-g">
+                <label className="inp-l">멘토링 / 후원 의향</label>
+                <div className="check-row" onClick={() => setObMentoring(v => !v)}>
+                  <div className={`check ${obMentoring ? 'on' : ''}`}>{obMentoring && <i className="ti ti-check"></i>}</div>
+                  <span style={{ fontSize: 13, color: 'var(--body)' }}>후배 멘토링·특강·후원에 참여 의향 있음</span>
+                </div>
+              </div>
+              <button className="btn btn-fill" onClick={saveObProfile}>수정 저장</button>
+            </div>
+          )}
         </div>
 
         {/* ════════ MY - 개인정보 관리 ════════ */}

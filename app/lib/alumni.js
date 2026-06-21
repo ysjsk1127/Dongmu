@@ -36,9 +36,12 @@ export function addAlumnus(data) {
     graduationYear: data.graduationYear || '',
     company: data.company || '',
     position: data.position || '',
+    department: data.department || '',
+    studentId: data.studentId || '',
     phone: data.phone || '',
     email: data.email || '',
-    mentoring: data.mentoring || false, // 멘토링 참여 의향
+    linkedEmail: data.linkedEmail || '',
+    mentoring: data.mentoring || false,
     memo: data.memo || '',
     createdAt: new Date().toISOString(),
   };
