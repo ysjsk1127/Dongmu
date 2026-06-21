@@ -43,7 +43,7 @@ function niceAxis(maxVal, forceInt) {
   for (let v = 0; v <= niceMax; v += step) ticks.push(v);
   return { ticks, niceMax, step };
 }
-const CW = 360, CH = 160, TP = 18, VH = TP + CH + 34;
+const CW = 400, CH = 120, TP = 14, VH = TP + CH + 30;
 const PIE_COLORS = ['#4d8ef7', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#14b8a6'];
 
 export default function Home() {
@@ -2716,10 +2716,10 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
             const lastN = sortedKeys.slice(-8);
             const maxVal = Math.max(...lastN.map(k => Math.max(grouped[k].income, grouped[k].expense)), 1);
             const ax = niceAxis(maxVal);
-            const yAW = 50;
-            const barArea = CW - yAW - 10;
+            const yAW = 60;
+            const barArea = CW - yAW - 16;
             const bGap = lastN.length > 0 ? barArea / lastN.length : 40;
-            const bW = Math.min(bGap * 0.35, 16);
+            const bW = Math.min(bGap * 0.35, 18);
             return (
               <>
                 <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
@@ -2794,30 +2794,35 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                     const circ = 2 * Math.PI * 35;
                     let offset = 0;
                     return (
-                      <>
-                        <div style={{ display: 'flex', justifyContent: 'center', margin: '8px 0 12px' }}>
-                          <svg viewBox="0 0 100 100" style={{ width: 120, height: 120 }}>
-                            {items.map((c, i) => {
-                              const seg = (c.total / expTotal) * circ;
-                              const el = <circle key={i} cx={50} cy={50} r={35} fill="none" stroke={PIE_COLORS[i % PIE_COLORS.length]} strokeWidth={20} strokeDasharray={`${seg} ${circ - seg}`} strokeDashoffset={-offset} transform="rotate(-90 50 50)" />;
-                              offset += seg;
-                              return el;
-                            })}
-                          </svg>
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px' }}>
+                      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
                           {items.map((c, i) => {
                             const pct = Math.round((c.total / expTotal) * 100);
                             return (
-                              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 0', fontSize: 13 }}>
-                                <span style={{ width: 10, height: 10, borderRadius: '50%', background: PIE_COLORS[i % PIE_COLORS.length], flexShrink: 0 }}></span>
-                                <span>{c.category}</span>
-                                <span style={{ fontWeight: 700, marginLeft: 'auto' }}>{pct}%</span>
+                              <div key={i} style={{ marginBottom: 8 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 3, whiteSpace: 'nowrap' }}>
+                                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: PIE_COLORS[i % PIE_COLORS.length], flexShrink: 0 }}></span>
+                                    {c.category}
+                                  </span>
+                                  <span style={{ fontWeight: 700 }}>{pct}%</span>
+                                </div>
+                                <div style={{ height: 6, background: 'var(--elevated)', borderRadius: 3, overflow: 'hidden' }}>
+                                  <div style={{ height: '100%', width: `${pct}%`, background: PIE_COLORS[i % PIE_COLORS.length], borderRadius: 3 }}></div>
+                                </div>
                               </div>
                             );
                           })}
                         </div>
-                      </>
+                        <svg viewBox="0 0 100 100" style={{ width: 76, height: 76, flexShrink: 0 }}>
+                          {items.map((c, i) => {
+                            const seg = (c.total / expTotal) * circ;
+                            const el = <circle key={i} cx={50} cy={50} r={35} fill="none" stroke={PIE_COLORS[i % PIE_COLORS.length]} strokeWidth={18} strokeDasharray={`${seg} ${circ - seg}`} strokeDashoffset={-offset} transform="rotate(-90 50 50)" />;
+                            offset += seg;
+                            return el;
+                          })}
+                        </svg>
+                      </div>
                     );
                   })() : (
                     <div className="cap" style={{ textAlign: 'center', padding: 20 }}>지출 데이터가 없습니다.</div>
@@ -2875,8 +2880,8 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
             const lastN = sortedKeys.slice(-8);
             const maxCount = Math.max(...lastN.map(k => byPeriod[k].length), 1);
             const ax = niceAxis(maxCount, true);
-            const yAW = 30;
-            const barArea = CW - yAW - 10;
+            const yAW = 36;
+            const barArea = CW - yAW - 16;
             const bGap = lastN.length > 0 ? barArea / lastN.length : 40;
             const bW = Math.min(bGap * 0.6, 28);
             const roleCount = {};
@@ -2939,30 +2944,35 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                     const circ = 2 * Math.PI * 35;
                     let offset = 0;
                     return (
-                      <>
-                        <div style={{ display: 'flex', justifyContent: 'center', margin: '8px 0 12px' }}>
-                          <svg viewBox="0 0 100 100" style={{ width: 120, height: 120 }}>
-                            {roles.map(([, cnt], i) => {
-                              const seg = (cnt / memC) * circ;
-                              const el = <circle key={i} cx={50} cy={50} r={35} fill="none" stroke={PIE_COLORS[i % PIE_COLORS.length]} strokeWidth={20} strokeDasharray={`${seg} ${circ - seg}`} strokeDashoffset={-offset} transform="rotate(-90 50 50)" />;
-                              offset += seg;
-                              return el;
-                            })}
-                          </svg>
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px' }}>
+                      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
                           {roles.map(([role, cnt], i) => {
                             const pct = Math.round((cnt / memC) * 100);
                             return (
-                              <div key={role} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 0', fontSize: 13 }}>
-                                <span style={{ width: 10, height: 10, borderRadius: '50%', background: PIE_COLORS[i % PIE_COLORS.length], flexShrink: 0 }}></span>
-                                <span>{role}</span>
-                                <span style={{ fontWeight: 700, marginLeft: 'auto' }}>{cnt}명 ({pct}%)</span>
+                              <div key={role} style={{ marginBottom: 8 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 3, whiteSpace: 'nowrap' }}>
+                                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: PIE_COLORS[i % PIE_COLORS.length], flexShrink: 0 }}></span>
+                                    {role}
+                                  </span>
+                                  <span style={{ fontWeight: 700 }}>{cnt}명 ({pct}%)</span>
+                                </div>
+                                <div style={{ height: 6, background: 'var(--elevated)', borderRadius: 3, overflow: 'hidden' }}>
+                                  <div style={{ height: '100%', width: `${pct}%`, background: PIE_COLORS[i % PIE_COLORS.length], borderRadius: 3 }}></div>
+                                </div>
                               </div>
                             );
                           })}
                         </div>
-                      </>
+                        <svg viewBox="0 0 100 100" style={{ width: 76, height: 76, flexShrink: 0 }}>
+                          {roles.map(([, cnt], i) => {
+                            const seg = (cnt / memC) * circ;
+                            const el = <circle key={i} cx={50} cy={50} r={35} fill="none" stroke={PIE_COLORS[i % PIE_COLORS.length]} strokeWidth={18} strokeDasharray={`${seg} ${circ - seg}`} strokeDashoffset={-offset} transform="rotate(-90 50 50)" />;
+                            offset += seg;
+                            return el;
+                          })}
+                        </svg>
+                      </div>
                     );
                   })() : <div className="cap" style={{ textAlign: 'center', padding: 20 }}>부원 데이터가 없습니다.</div>}
                 </div>
@@ -2999,8 +3009,8 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
             const lastN = sortedKeys.slice(-8);
             const maxCount = Math.max(...lastN.map(k => months[k].length), 1);
             const ax = niceAxis(maxCount, true);
-            const yAW = 30;
-            const barArea = CW - yAW - 10;
+            const yAW = 36;
+            const barArea = CW - yAW - 16;
             const bGap = lastN.length > 0 ? barArea / lastN.length : 40;
             const bW = Math.min(bGap * 0.6, 28);
             const catCount = {};
@@ -3060,27 +3070,34 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                   return (
                     <div className="card" style={{ marginBottom: 10 }}>
                       <h3 style={{ marginBottom: 8 }}>분류별 현황</h3>
-                      <div style={{ display: 'flex', justifyContent: 'center', margin: '8px 0 12px' }}>
-                        <svg viewBox="0 0 100 100" style={{ width: 120, height: 120 }}>
+                      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          {cats.map(([cat, cnt], i) => {
+                            const pct = Math.round((cnt / schC) * 100);
+                            return (
+                              <div key={cat} style={{ marginBottom: 8 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 3, whiteSpace: 'nowrap' }}>
+                                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: PIE_COLORS[i % PIE_COLORS.length], flexShrink: 0 }}></span>
+                                    {cat}
+                                  </span>
+                                  <span style={{ fontWeight: 700 }}>{cnt}건 ({pct}%)</span>
+                                </div>
+                                <div style={{ height: 6, background: 'var(--elevated)', borderRadius: 3, overflow: 'hidden' }}>
+                                  <div style={{ height: '100%', width: `${pct}%`, background: PIE_COLORS[i % PIE_COLORS.length], borderRadius: 3 }}></div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <svg viewBox="0 0 100 100" style={{ width: 76, height: 76, flexShrink: 0 }}>
                           {cats.map(([, cnt], i) => {
                             const seg = (cnt / schC) * circ;
-                            const el = <circle key={i} cx={50} cy={50} r={35} fill="none" stroke={PIE_COLORS[i % PIE_COLORS.length]} strokeWidth={20} strokeDasharray={`${seg} ${circ - seg}`} strokeDashoffset={-offset} transform="rotate(-90 50 50)" />;
+                            const el = <circle key={i} cx={50} cy={50} r={35} fill="none" stroke={PIE_COLORS[i % PIE_COLORS.length]} strokeWidth={18} strokeDasharray={`${seg} ${circ - seg}`} strokeDashoffset={-offset} transform="rotate(-90 50 50)" />;
                             offset += seg;
                             return el;
                           })}
                         </svg>
-                      </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px' }}>
-                        {cats.map(([cat, cnt], i) => {
-                          const pct = Math.round((cnt / schC) * 100);
-                          return (
-                            <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 0', fontSize: 13 }}>
-                              <span style={{ width: 10, height: 10, borderRadius: '50%', background: PIE_COLORS[i % PIE_COLORS.length], flexShrink: 0 }}></span>
-                              <span>{cat}</span>
-                              <span style={{ fontWeight: 700, marginLeft: 'auto' }}>{cnt}건 ({pct}%)</span>
-                            </div>
-                          );
-                        })}
                       </div>
                     </div>
                   );
@@ -3123,8 +3140,8 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
             const lastN = sortedKeys.slice(-8);
             const maxVal = Math.max(...lastN.map(k => byPeriod[k].total), 1);
             const ax = niceAxis(maxVal);
-            const yAW = 50;
-            const barArea = CW - yAW - 10;
+            const yAW = 60;
+            const barArea = CW - yAW - 16;
             const bGap = lastN.length > 0 ? barArea / lastN.length : 40;
             const bW = Math.min(bGap * 0.6, 28);
             const typeCount = {};
@@ -3187,27 +3204,34 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                   return (
                     <div className="card" style={{ marginBottom: 10 }}>
                       <h3 style={{ marginBottom: 8 }}>유형별 분포</h3>
-                      <div style={{ display: 'flex', justifyContent: 'center', margin: '8px 0 12px' }}>
-                        <svg viewBox="0 0 100 100" style={{ width: 120, height: 120 }}>
+                      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          {types.map(([type, cnt], i) => {
+                            const pct = Math.round((cnt / sponsorList.length) * 100);
+                            return (
+                              <div key={type} style={{ marginBottom: 8 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 3, whiteSpace: 'nowrap' }}>
+                                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: PIE_COLORS[i % PIE_COLORS.length], flexShrink: 0 }}></span>
+                                    {type}
+                                  </span>
+                                  <span style={{ fontWeight: 700 }}>{cnt}건 ({pct}%)</span>
+                                </div>
+                                <div style={{ height: 6, background: 'var(--elevated)', borderRadius: 3, overflow: 'hidden' }}>
+                                  <div style={{ height: '100%', width: `${pct}%`, background: PIE_COLORS[i % PIE_COLORS.length], borderRadius: 3 }}></div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <svg viewBox="0 0 100 100" style={{ width: 76, height: 76, flexShrink: 0 }}>
                           {types.map(([, cnt], i) => {
                             const seg = (cnt / sponsorList.length) * circ;
-                            const el = <circle key={i} cx={50} cy={50} r={35} fill="none" stroke={PIE_COLORS[i % PIE_COLORS.length]} strokeWidth={20} strokeDasharray={`${seg} ${circ - seg}`} strokeDashoffset={-offset} transform="rotate(-90 50 50)" />;
+                            const el = <circle key={i} cx={50} cy={50} r={35} fill="none" stroke={PIE_COLORS[i % PIE_COLORS.length]} strokeWidth={18} strokeDasharray={`${seg} ${circ - seg}`} strokeDashoffset={-offset} transform="rotate(-90 50 50)" />;
                             offset += seg;
                             return el;
                           })}
                         </svg>
-                      </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px' }}>
-                        {types.map(([type, cnt], i) => {
-                          const pct = Math.round((cnt / sponsorList.length) * 100);
-                          return (
-                            <div key={type} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 0', fontSize: 13 }}>
-                              <span style={{ width: 10, height: 10, borderRadius: '50%', background: PIE_COLORS[i % PIE_COLORS.length], flexShrink: 0 }}></span>
-                              <span>{type}</span>
-                              <span style={{ fontWeight: 700, marginLeft: 'auto' }}>{cnt}건 ({pct}%)</span>
-                            </div>
-                          );
-                        })}
                       </div>
                     </div>
                   );
