@@ -2764,7 +2764,7 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                           return (
                             <g key={v}>
                               <line x1={yAW} y1={y} x2={CW} y2={y} stroke="var(--hair)" strokeWidth={0.5} opacity={0.6} />
-                              <text x={yAW - 4} y={y + 4} textAnchor="end" fill="var(--muted)" fontSize={9}>{formatExpAmount(v)}</text>
+                              <text x={yAW - 4} y={y + 4} textAnchor="end" fill="var(--muted)" fontSize={7}>{formatExpAmount(v)}</text>
                             </g>
                           );
                         })}
@@ -2777,7 +2777,7 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                             <g key={k}>
                               <rect className="chart-bar" x={x} y={TP + CH - ih} width={bW} height={ih} rx={4} fill="#22c55e" opacity={0.85} onMouseEnter={e => showTip(e, `${k} 수입: ₩${formatExpAmount(g.income)}`)} onMouseLeave={hideTip} onTouchStart={e => showTip(e, `${k} 수입: ₩${formatExpAmount(g.income)}`)} onTouchEnd={() => setTimeout(hideTip, 1500)} />
                               <rect className="chart-bar" x={x + bW + 2} y={TP + CH - eh} width={bW} height={eh} rx={4} fill="#f59e0b" opacity={0.85} onMouseEnter={e => showTip(e, `${k} 지출: ₩${formatExpAmount(g.expense)}`)} onMouseLeave={hideTip} onTouchStart={e => showTip(e, `${k} 지출: ₩${formatExpAmount(g.expense)}`)} onTouchEnd={() => setTimeout(hideTip, 1500)} />
-                              <text x={x + bW} y={TP + CH + 20} textAnchor="middle" fill="var(--muted)" fontSize={9}>{k.length > 7 ? k.slice(-5) : k}</text>
+                              <text x={x + bW} y={TP + CH + 20} textAnchor="middle" fill="var(--muted)" fontSize={7}>{k.length > 7 ? k.slice(-5) : k}</text>
                             </g>
                           );
                         })}
@@ -2901,7 +2901,7 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                         return (
                           <g key={v}>
                             <line x1={yAW} y1={y} x2={CW} y2={y} stroke="var(--hair)" strokeWidth={0.5} opacity={0.6} />
-                            <text x={yAW - 4} y={y + 4} textAnchor="end" fill="var(--muted)" fontSize={9}>{v}</text>
+                            <text x={yAW - 4} y={y + 4} textAnchor="end" fill="var(--muted)" fontSize={7}>{v}</text>
                           </g>
                         );
                       })}
@@ -2912,7 +2912,7 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                         return (
                           <g key={k}>
                             <rect className="chart-bar" x={x} y={TP + CH - h} width={bW} height={h} rx={4} fill="#4d8ef7" opacity={0.85} onMouseEnter={e => showTip(e, `${k}: ${cnt}명`)} onMouseLeave={hideTip} onTouchStart={e => showTip(e, `${k}: ${cnt}명`)} onTouchEnd={() => setTimeout(hideTip, 1500)} />
-                            <text x={x + bW / 2} y={TP + CH + 20} textAnchor="middle" fill="var(--muted)" fontSize={9}>{k.length > 7 ? k.slice(-5) : k}</text>
+                            <text x={x + bW / 2} y={TP + CH + 20} textAnchor="middle" fill="var(--muted)" fontSize={7}>{k.length > 7 ? k.slice(-5) : k}</text>
                           </g>
                         );
                       })}
@@ -3007,7 +3007,7 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                         return (
                           <g key={v}>
                             <line x1={yAW} y1={y} x2={CW} y2={y} stroke="var(--hair)" strokeWidth={0.5} opacity={0.6} />
-                            <text x={yAW - 4} y={y + 4} textAnchor="end" fill="var(--muted)" fontSize={9}>{v}</text>
+                            <text x={yAW - 4} y={y + 4} textAnchor="end" fill="var(--muted)" fontSize={7}>{v}</text>
                           </g>
                         );
                       })}
@@ -3018,7 +3018,7 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                         return (
                           <g key={k}>
                             <rect className="chart-bar" x={x} y={TP + CH - h} width={bW} height={h} rx={4} fill="#22c55e" opacity={0.85} onMouseEnter={e => showTip(e, `${k.slice(-2)}월: ${cnt}건`)} onMouseLeave={hideTip} onTouchStart={e => showTip(e, `${k.slice(-2)}월: ${cnt}건`)} onTouchEnd={() => setTimeout(hideTip, 1500)} />
-                            <text x={x + bW / 2} y={TP + CH + 20} textAnchor="middle" fill="var(--muted)" fontSize={9}>{k.slice(-2)}월</text>
+                            <text x={x + bW / 2} y={TP + CH + 20} textAnchor="middle" fill="var(--muted)" fontSize={7}>{k.slice(-2)}월</text>
                           </g>
                         );
                       })}
@@ -3124,7 +3124,7 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                         return (
                           <g key={v}>
                             <line x1={yAW} y1={y} x2={CW} y2={y} stroke="var(--hair)" strokeWidth={0.5} opacity={0.6} />
-                            <text x={yAW - 4} y={y + 4} textAnchor="end" fill="var(--muted)" fontSize={9}>{formatAmount(v)}</text>
+                            <text x={yAW - 4} y={y + 4} textAnchor="end" fill="var(--muted)" fontSize={7}>{formatAmount(v)}</text>
                           </g>
                         );
                       })}
@@ -3134,7 +3134,7 @@ ${alumni.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.generation || 
                         return (
                           <g key={k}>
                             <rect className="chart-bar" x={x} y={TP + CH - h} width={bW} height={h} rx={4} fill="#ef4444" opacity={0.8} onMouseEnter={e => showTip(e, `${k}: ₩${formatAmount(byPeriod[k].total)} (${byPeriod[k].count}건)`)} onMouseLeave={hideTip} onTouchStart={e => showTip(e, `${k}: ₩${formatAmount(byPeriod[k].total)} (${byPeriod[k].count}건)`)} onTouchEnd={() => setTimeout(hideTip, 1500)} />
-                            <text x={x + bW / 2} y={TP + CH + 20} textAnchor="middle" fill="var(--muted)" fontSize={9}>{k.length > 7 ? k.slice(-5) : k}</text>
+                            <text x={x + bW / 2} y={TP + CH + 20} textAnchor="middle" fill="var(--muted)" fontSize={7}>{k.length > 7 ? k.slice(-5) : k}</text>
                           </g>
                         );
                       })}
