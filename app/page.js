@@ -717,7 +717,7 @@ export default function Home() {
     showToast('졸업생 정보가 수정되었습니다');
     setObEditing(false);
     refreshData();
-    go('me');
+    go('my');
   }
 
   /* ───── Generic delete for new modules ───── */
